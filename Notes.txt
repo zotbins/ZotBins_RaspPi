@@ -1,0 +1,8 @@
+Finding MAC Address: 
+https://www.raspberrypi-
+spy.co.uk/2012/06/finding-the-mac-address-of-a-raspberry-pi/
+- Type "cat /sys/class/net/eth0/address"
+- or Type "ifconfig eth0"
+- then find MAC Address next to "Ethernet HWaddr" 
+- Example: b7:30:cf:f1:7d:b4
+-sudo date -s "Mon Aug  12 20:14:11 PDT 2014"
