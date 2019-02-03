@@ -26,7 +26,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 60;):
 	[FREQUENCY_SECONDS] = wait time between calculating measurements lower time for testing, 600 seconds for actual use;
 	"""
 	#============json parsing file===================
-	with open("/home/pi/ZBinData/binData.txt") as bindata:
+	with open("/home/pi/ZBinData/binData.json") as bindata:
 		BININFO = eval( bindata.read() )["bin"][0]
 	BinID = BININFO["binID"]
 	#setting GPIO Mode for weight sensor.
