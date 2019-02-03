@@ -16,14 +16,14 @@ import sqlite3
 
 DISPLAY = True
 
-def main(SEND_DATA=True):
+def main(SEND_DATA=True, FREQUENCY_SECONDS = 60;):
 	"""
 	This is the main function that collects data for the
 	Raspberry Pi. This function manages data collection
 	by the Raspberry Pi, performs error checking, and
 	sends data to the UCI TIPPERS SERVER.
-	[BinID]: a string that refers to the BinID
 	[SEND_DATA]: a bool that turns on/off sending data to tippers
+	[FREQUENCY_SECONDS] = wait time between calculating measurements lower time for testing, 600 seconds for actual use;
 	"""
 	#============json parsing file===================
 	with open("/home/pi/ZBinData/binData.txt") as bindata:
@@ -31,8 +31,6 @@ def main(SEND_DATA=True):
 	BinID = BININFO["binID"]
 	#setting GPIO Mode for weight sensor.
 	GPIO.setmode(GPIO.BCM)
-	#wait time between calculating measurements lower time for testing, 600 seconds for actual use
-	FREQUENCY_SECONDS = 60;
 
 	#Global Filtering Variables. If a measured weight difference is
 	MAX_WEIGHT_DIFF = 11.9712793734
