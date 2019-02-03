@@ -140,6 +140,9 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 				print("Distance:", distance, "cm")
 				print("Time difference:", time.time()-post_time)
 
+			#=======time stall========
+			time.sleep(120)
+
 			#===================post data locally=====================
 			timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 			add_data_to_local(timestamp, weight, distance)
@@ -152,9 +155,6 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 				post_time = time.time() #reset post_time
 			else:
 				continue #Not time to Update TIPPERS yet
-
-			#=======time stall========
-			time.sleep(120)
 
 	except KeyboardInterrupt:
 	    if DISPLAY: print "Cleaning..."
