@@ -16,7 +16,7 @@ import sqlite3
 
 DISPLAY = True
 
-def main(SEND_DATA=True, FREQUENCY_SECONDS = 60):
+def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 	"""
 	This is the main function that collects data for the
 	Raspberry Pi. This function manages data collection
