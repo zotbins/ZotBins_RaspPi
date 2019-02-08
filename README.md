@@ -11,6 +11,7 @@ git config --global user.name "John Doe"
 git config --global user.email johndoe@example.com
 git config --global credential.helper wincred
 ```
+To view your configuration information: `git config --global -l`
 
 ## First Time Running ZotBins RaspPi
 
