@@ -17,7 +17,7 @@ To view your configuration information: `git config --global -l`
 
 Make sure all electronic components ( load cell + hx711, ultrasonic sensor + voltage converter ) are connected to the Raspberry Pi. 
 1) Open Terminal
-2) `git clone https://github.com/okyang/ZotBins_RaspPi.git'
+2) `git clone https://github.com/okyang/ZotBins_RaspPi.git`
 3) `cd ZotBins_RaspPi`
 4) `python ZBinMain.py` (please read user notes below)
 
