@@ -157,9 +157,9 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 				continue #Not time to Update TIPPERS yet
 
 	except KeyboardInterrupt:
-	    if DISPLAY: print "Cleaning..."
+	    if DISPLAY: print ("Cleaning...")
 	    GPIO.cleanup()
-	    if DISPLAY: print "Bye!"
+	    if DISPLAY: print ("Bye!")
 	    sys.exit()
 
 def null_check_convert(value):
