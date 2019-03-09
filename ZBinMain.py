@@ -90,9 +90,9 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 				#let the new weight be the current weight
 				weight = float(temp_weight)
 
-			if weight>=-10 and weight<0: #rounding negative numbers close to zero to zero
+			if temp_weight>=-10 and temp_weight<0: #rounding negative numbers close to zero to zero
 				weight = 0.0
-			elif weight <= -10: #gets rid of inaccurate negative numbers
+			elif temp_weight <= -10: #gets rid of inaccurate negative numbers
 				hx.power_down()
 				hx.power_up()
 				time.sleep(.5)
