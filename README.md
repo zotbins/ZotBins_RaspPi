@@ -1,5 +1,5 @@
 # ZotBins_RaspPi
-This repository contains all code that manages and interacts with the Raspberry Pi's of the ZotBins project. For more information on ZotBins, please visit: [ZotBins Info Video](tinyurl.com/zotbins)
+This repository contains all code that manages and interacts with the Raspberry Pi's of the ZotBins project. To view the webapp repository please visit: [ZotBins Web App](https://github.com/caojoshua/ZotBins-Web-App). For more information on ZotBins, please visit: [ZotBins Info Video](tinyurl.com/zotbins)
 
 ## First Time Github Set-up
 If you are using Windows and you do not have git, install [git bash] (https://gitforwindows.org/)
