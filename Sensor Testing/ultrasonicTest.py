@@ -23,7 +23,7 @@ try:
 		
 		while GPIO.input(ECHO)==0:
 			pulse_start = time.time()
-			#print(pulse_start)
+			print(pulse_start)
 
 		while GPIO.input(ECHO)==1:
 			pulse_end = time.time()
