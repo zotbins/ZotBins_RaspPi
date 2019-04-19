@@ -47,10 +47,10 @@ try:
 		while GPIO.input(ECHO)==1:
 			pulse_end = time.time()
 		pulse_duration = pulse_end - pulse_start
-		distnace = pulse_duration * 17150
-		distnace = round(distnace, 2)
+		distance = pulse_duration * 17150
+		distance = round(distance, 2)
 		print()
-		print("\nDistance:", distnace, "cm")
+		print("\nDistance:", distance, "cm")
 
 		#Weight measurement
 		derek = []
