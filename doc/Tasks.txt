@@ -4,6 +4,7 @@ TODO - Danny
 5/3/19
 - Question: No notification that bin is full? Just collecting data for ultrasonic sensor
 - Fix code starting at comment #===================post data locally=====================
+- Keyboard Interrupt?
 
 --------------------------------
 DONE - Danny
