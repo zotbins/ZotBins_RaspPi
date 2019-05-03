@@ -1,0 +1,17 @@
+--------------------------------
+TODO - Danny
+--------------------------------
+5/3/19
+- Question: No notification that bin is full? Just collecting data for ultrasonic sensor
+- Fix code starting at comment #===================post data locally=====================
+
+--------------------------------
+DONE - Danny
+--------------------------------
+5/3/19
+- New File: ZBinMain_v2.py
+	- Basically, I combined ZotBin code with DigitalWasteBin code
+	- BreakBeamThread, will update data locally on Pi when beam is broken
+	- QTimerLocal, will update data locally every 5 minutes
+		- whenever beam is broken, this timer gets resetted
+	- QTimerTimmer, will send data to tippers every 15 minutes
