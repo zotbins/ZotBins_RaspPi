@@ -18,15 +18,15 @@ import sqlite3
 
 # ============GLOBAL VARIABLES============
 # GPIO port numbers
-BREAKBEAM = 4   		#break beam sensor in
-HX711IN = 5				#weight sensor in
-HX711OUT = 6			#weight sensor out
-TRIG = 23				#ultrasonic sensor in
-ECHO = 24				#ultrasonic sensor out
+BREAKBEAM = 4   		# break beam sensor in
+HX711IN = 5				# weight sensor in
+HX711OUT = 6			# weight sensor out
+TRIG = 23				# ultrasonic sensor in
+ECHO = 24				# ultrasonic sensor out
 # Flags
-DISPLAY = True  		#Print info to terminal
-SEND_DATA = True		#Send data to tippers
-FREQUENCY_SECONDS = 600 #wait time between calculating measurements lower time for testing, 600 seconds for actual use
+DISPLAY = True  		# Print info to terminal
+SEND_DATA = True		# Send data to tippers
+FREQUENCY_SECONDS = 600 # wait time between calculating measurements lower time for testing, 600 seconds for actual use
 # Global Filtering Variables
 MAX_WEIGHT_DIFF = 11.9712793734
 MAX_DIST_DIFF = 0.8
@@ -64,9 +64,9 @@ class App(QtCore.QObject):
 	bin_info
 	weight_sensor_id
 	ultrasonic_sensor_id
-	prev_distance = 0.0 #for previous distance
-	prev_weight = 0.0 #for previous weight
-	post_time = time.time() #for determining when to push data
+	prev_distance = 0.0 # for previous distance
+	prev_weight = 0.0 # for previous weight
+	post_time = time.time() # for determining when to push data
 
 	def __init__(self):
 		super(App, self).__init__()
@@ -84,12 +84,12 @@ class App(QtCore.QObject):
 
 		# ============Set up GPIOs============
 		GPIO.setmode(GPIO.BCM)
-		#break bean sensor
+		# break bean sensor
 		GPIO.setup(BREAKBEAM,GPIO.IN)
-		#ultrasonic
+		# ultrasonic
 		GPIO.setup(TRIG,GPIO.OUT)
 		GPIO.setup(ECHO,GPIO.IN)
-		#hx711
+		# hx711
 		hx = HX711(HX711IN, HX711OUT)
 		hx.set_reading_format("LSB", "MSB")
 		hx.set_reference_unit(float( self.bin_info["weightCal"] ))
@@ -104,11 +104,11 @@ class App(QtCore.QObject):
 		# ============QTimer============
 		self.timerLocal = QTimer(self)
 		self.timerLocal.timeout.connect(self.update_local)
-		self.timerLocal.start(300000) #5 min
+		self.timerLocal.start(300000) # 5 min
 
 		self.timerTippers = QTimer(self)
 		self.timerTippers.timeout.connect(self.update_tippers)
-		self.timerTippers.start(900000) #15 min
+		self.timerTippers.start(900000) # 15 min
 
 	def update_local(self):
 		"""
@@ -118,60 +118,27 @@ class App(QtCore.QObject):
 		_do_weight_measurement()
 		_do_ultrasonic_measurement()
 
-		# ============start of ultrasonic measurement============
-		GPIO.output(TRIG, False)
-
-		# allowing ultrsaonic sensor to settle
-		time.sleep(.5) # Danny's Note: This might affect the QTimer in a bad way
-		# ultrasonic logic
-		GPIO.output(TRIG, True)
-		time.sleep(0.00001) # Danny's Note: This might affect the QTimer in a bad way
-		GPIO.output(TRIG, False)
-
-		# Danny's Note: Defined these first in-case they won't be defined if while True right away
-		pulse_end = 0
-		pulse_time = 0
-
-		while (GPIO.input(ECHO) == 0):
-			pulse_start = time.time()
-			# POSSIBLE ERROR: stuck in while loop
-			# Danny's Note: Sounds like code need to be added here
-
-		while (GPIO.input(ECHO) == 1):
-			pulse_end = time.time()
-			# POSSIBLE ERROR: stuck in while loop
-			# Danny's Note: Sounds like code need to be added here
-
-		pulse_duration = pulse_end - pulse_start
-
-		# collecting temporary distance and finding the difference between previous distance and current distance
-		temp_distance = float(pulse_duration * 17150)
-		distance_diff = abs(temp_distance - self.prev_distance)
-		# logic for filtering out distance data.
-		if distance_diff < MAX_DIST_DIFF and distance_diff > 0:
-			pass
-		else:
-			self.prev_distance = round(temp_distance, 2)
-		#=============end of ultrasonic measurement===============
-
-		#for DEBUGGING
+		# for DEBUGGING
 		if DISPLAY:
 			print("Weight:", self.prev_weight)
 			print("Distance:", self.prev_distance, "cm")
-			print("Time difference:", time.time() - post_time)
+			print("Time difference:", time.time() - self.post_time)
 
-		#===================post data locally=====================
+		# Danny's Note: This chunk of the code needs to be review 
+# ------------------------------------------------------------------------------------------------
+		# ============post data locally============
 		timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 		add_data_to_local(timestamp, self.prev_weight, self.prev_distance)
 		if DISPLAY: print("data added successfully to sqlite")
-		#====================post data to Tippers==================
-		#check if it is time to post
-		if (time.time() - post_time > FREQUENCY_SECONDS) and SEND_DATA: # Danny's Note: Get rid of Freq Seconds
+		# ============post data to Tippers============
+		# check if it is time to post
+		if (time.time() - self.post_time > FREQUENCY_SECONDS) and SEND_DATA: # Danny's Note: Get rid of Freq Seconds
 			#update tippers with all the data from local database
 			update_tippers(WEIGHT_SENSOR_ID, WEIGHT_TYPE, ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO)
-			post_time = time.time() #reset post_time
+			self.post_time = time.time() # reset post_time
 		else:
-			continue #Not time to Update TIPPERS yet
+			continue # Not time to Update TIPPERS yet
+# ------------------------------------------------------------------------------------------------
 
 		self.timerLocal.start(300000) #Reset this timer, in the case that it hasn't count all the way down
 
