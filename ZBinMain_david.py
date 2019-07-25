@@ -268,6 +268,11 @@ def fail_check():
                 wt_on = prev_wt
         err_state = (ut_on,wt_on,connected)
 
+def checkLocalConnection(n,p):
+        return
+def checkServerConnection(n,p):
+        return
+
 def update_log(n_text:str):
         if not log:
                 print(n_text+'\n')
