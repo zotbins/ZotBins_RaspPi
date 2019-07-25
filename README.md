@@ -19,7 +19,7 @@ Make sure all electronic components ( load cell + hx711, ultrasonic sensor + vol
 1) Open Terminal (you can use the short-cut: `ctrl+alt+t`)
 2) `git clone https://github.com/okyang/ZotBins_RaspPi.git`
 3) `cd ZotBins_RaspPi`
-4) `python ZBinMain.py` (please read user notes below)
+4) `python3 ZBinMain.py` (please read user notes below)
 
 ### Public Users
 If you are a public user, please change the last line of code in `ZBinMain.py` from `main()` to `main(SEND_DATA=False)` then run `ZBinMain.py` 
