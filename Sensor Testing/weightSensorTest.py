@@ -4,16 +4,16 @@ import sys
 import RPi.GPIO as GPIO
 from hx711 import HX711
 
-CALLIBRATE = True
+CALLIBRATE = False
 collected_vals = []
 
 GPIO.setmode(GPIO.BCM)
 
 #========================hx711 set up=====================================
 def cleanAndExit():
-	print "Cleaning..."
+	print ("Cleaning...")
 	GPIO.cleanup()
-	print "Bye!"
+	print ("Bye!")
 	sys.exit()
 
 def power_nap():
@@ -80,4 +80,6 @@ def test(refer_unit):
 		cleanAndExit()
 
 if __name__ == "__main__":
-	test(1)
+	#test(1)
+        test(9730/500)
+	#test(10192/500)

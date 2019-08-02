@@ -13,13 +13,13 @@ class HX711:
 
         self.GAIN = 0
         self.REFERENCE_UNIT = 1  # The value returned by the hx711 that corresponds to your reference unit AFTER dividing by the SCALE.
-        
+
         self.OFFSET = 1
-        self.lastVal = long(0)
+        self.lastVal = int(0)
 
         self.LSByte = [2, -1, -1]
         self.MSByte = [0, 3, 1]
-        
+
         self.MSBit = [0, 8, 1]
         self.LSBit = [7, -1, -1]
 
@@ -43,7 +43,7 @@ class HX711:
 
         GPIO.output(self.PD_SCK, False)
         self.read()
-    
+
     def createBoolList(self, size=8):
         ret = []
         for i in range(size):
@@ -97,7 +97,7 @@ class HX711:
                 comma = ""
             np_arr8_string += str(np_arr8[i]) + comma
         np_arr8_string += "]";
-        
+
         return np_arr8_string
 
     def read_np_arr8(self):
@@ -111,10 +111,10 @@ class HX711:
         np_arr32 = np_arr8.view('uint32')
         self.lastVal = np_arr32
 
-        return long(self.lastVal)
+        return int(self.lastVal)
 
     def read_average(self, times=3):
-        values = long(0)
+        values = int(0)
         for i in range(times):
             values += self.read_long()
 
@@ -129,7 +129,7 @@ class HX711:
         return value
 
     def tare(self, times=15):
-       
+
         # Backup REFERENCE_UNIT value
         reference_unit = self.REFERENCE_UNIT
         self.set_reference_unit(1)
