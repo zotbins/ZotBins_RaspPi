@@ -1,0 +1,22 @@
+
+This is the measured weight: -6.5775950668037
+Weight Diff not enough: 6.5775950668037
+Weight: 0.0
+Distance: 0.0 cm
+Time difference: 5.573645353317261
+data added successfully to sqlite
+
+This is the measured weight: 3.6382322713162245
+Weight Diff not enough: 3.6382322713162245
+Weight: 0.0
+Distance: -2152248.3 cm
+Time difference: 131.07350945472717
+data added successfully to sqlite
+
+This is the measured weight: 2.404933196290531
+Weight Diff not enough: 2.404933196290531
+Weight: 0.0
+Distance: -4304624.78 cm
+Time difference: 256.57664680480957
+Cleaning...
+Bye!

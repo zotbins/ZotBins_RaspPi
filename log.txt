@@ -1,0 +1,8 @@
+
+This is the measured weight -1.5587529975859655
+Weight Diff not enough: 1.5587529975859655
+Weight: 0.0
+Distance: 63.53 cm
+Time difference: 5.572458505630493
+Cleaning...
+Bye!
