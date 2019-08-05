@@ -1,5 +1,7 @@
 #ignoring david's file
 
+zbinlog.txt
+*.txt
 david_weight_test.py
 __pycache__/
 *.pyc
