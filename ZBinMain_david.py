@@ -1,5 +1,3 @@
-#This code is intended to be used with Python 2
-
 #====timestamps imports=========
 import time
 import datetime
