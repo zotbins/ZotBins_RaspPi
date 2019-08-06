@@ -14,7 +14,7 @@ from hx711 import HX711
 #======other imports=============
 import sqlite3
 
-DISPLAY = True
+DISPLAY = False
 
 def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 	"""
