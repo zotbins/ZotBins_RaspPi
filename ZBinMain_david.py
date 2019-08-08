@@ -1,3 +1,4 @@
+#compiled in python3#
 #====timestamps imports=========
 import time
 import datetime
@@ -13,8 +14,10 @@ from hx711 import HX711
 import sqlite3
 from socket import *
 import urllib
+import logging
 
-DISPLAY = True
+LOG = True #write error log
+DISPLAY = False #print to display
 
 def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
         """
@@ -51,19 +54,24 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                 "Content-Type": "application/json",
                 "Accept": "application/json"
         }
-        
+
+        #===========================debug=============================
         #warning flags and checks
         ut_ping = 0             #ultrasonic timeout keeper, increments once per ping attempt
         wt_ping = 0             #weight sensor timeout keeper, only increments on NULL read weights not inaccurate readings
+        upload_time = 0 #number of unsuccessful uploads to tippers
+
         UT_MAX = 50
         WT_MAX = 100
-        #ERR_REPORT = 0
-        #check_time = time.time() #tracks the timeout
-        upload_time = 0 #number of unsuccessful uploads to tippers
+        
         ut_on = True
         wt_on = True
         connected = True #isConnected('localhost',5050)
-        #err_state = (ut_on,wt_on,connection) #keeps track of the previous state of the pi to prevent error report spamming
+        err_state = (True,True,True)
+
+        #error log settings
+        err_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S') #append this to log report name
+        logging.basicConfig(level=10, filename='logs/zbinlog{}.txt'.format(err_time) ) #set log report to debugging level (10)
 
         #========================ultrasonic set up================================
         GPIO.setup(TRIG,GPIO.OUT)
@@ -81,8 +89,10 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
         distance, weight = 0.0,0.0
         #local variable for determining when to push data
         post_time = time.time()
+
         try:
                 while True:
+                        if DISPLAY: print("starting weight")
                         #============start weight measurement================
                         #collecting a list of measurements
                         derek = []
@@ -92,14 +102,13 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                         #taking median of sorted values and finding the difference
                         temp_weight = sorted(derek)[5]
                         weight_diff = abs( temp_weight - null_check_convert(weight) )
-
-                        if DISPLAY: update_log("\nThis is the measured weight: "+str(temp_weight))
+        
 
                         #filtering logic that ignores new weight reading when
                         #the difference is less than a certain number
                         if weight_diff < MAX_WEIGHT_DIFF:
                                 #the previous weight will now be the current weight
-                                if DISPLAY: update_log("Weight Diff not enough: "+str(weight_diff))
+                                pass
                         else:
                                 #let the new weight be the current weight
                                 weight = float(temp_weight)
@@ -110,7 +119,6 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                                 hx.power_down()
                                 hx.power_up()
                                 time.sleep(.5)
-                                update_log("large negative numbers: "+str(weight)+" on "+datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S') )
                                 weight = "NULL"
                                 #continue #ERROR: Large Negative Numbers
 
@@ -122,9 +130,10 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                         #=============start of ultrasonic measurement===============
                         GPIO.output(TRIG, False)
                         
-                        #sensor pinging stuck
+                        #sensor pinging flags/counters 
                         pulse_ping = 0
                         timed_out = False
+                        if DISPLAY: print("starting sensing")
 
                         #allowing ultrsaonic sensor to settle
                         time.sleep(.5)
@@ -132,26 +141,28 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                         GPIO.output(TRIG, True)
                         time.sleep(0.00001)
                         GPIO.output(TRIG, False)
-
-                        while GPIO.input(ECHO)==0 and ping <= MAX_ULTRASONIC_PING:
-                                pulse_start = time.time()
-                                #POSSIBLE ERROR: stuck in while loop
-                                pulse_ping = pulse_ping+1
                         
-                        if ping == MAX_ULTRASONIC_PING:
+                        #check to see if sensor is in the ready state. Gets time once ready for calculations
+                        while GPIO.input(ECHO)==0 and pulse_ping < MAX_ULTRASONIC_PING:
+                                pulse_start = time.time()
+                                pulse_ping = pulse_ping+1
+
+                        #checks unusual case where sensor never switches to a ready state (always receives noise feedback)
+                        if pulse_ping == MAX_ULTRASONIC_PING:
                                 timed_out = True
                                 
-                        pulse_ping = 0
+                        pulse_ping = 0 #reset pulse_ping to reuse for the 2nd part
 
-                        while GPIO.input(ECHO)==1 and ping < MAX_ULTRASONIC_PING:
+                        while GPIO.input(ECHO)==1 and pulse_ping < MAX_ULTRASONIC_PING:
                                 pulse_end = time.time()
-                                #POSSIBLE ERROR: stuck in while loop
                                 pulse_ping = pulse_ping+1
                                 
-                        if ping == MAX_ULTRASONIC_PING or timed_out:
+                        #in the case the sensor times out or never switches state, increment error state
+                        if pulse_ping == MAX_ULTRASONIC_PING or timed_out:
                                 timed_out = True
                                 pulse_duration = 0 #what value is pulse ping if it times out??
                                 ut_ping = ut_ping+1
+                                if DISPLAY: print("ultrasonic timed out")
                         else:
                                 pulse_duration = pulse_end - pulse_start
 
@@ -272,22 +283,7 @@ def checkServerConnection(n,p):
         return
 
 def update_log(n_text:str):
-        if not log:
-                print(n_text+'\n')
-        log_file = 0
-        try:
-                file = Path("zbinlog.txt")
-                if(file.is_file()):
-                        log_file = file.open('a')
-                else:
-                        log_file = file.open('w')
-                log_file.write(n_text+'\n')
-        except:
-                print("Could not finish log\n")
-        finally:
-                if log_file != 0:
-                        log_file.close
-
+        print(n_text+'\n')
 
 if __name__ == "__main__":
         main()
