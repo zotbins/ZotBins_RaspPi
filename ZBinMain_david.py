@@ -13,8 +13,13 @@ from hx711 import HX711
 #======other imports=============
 import sqlite3
 from socket import *
-import urllib
+import smtplib, ssl, urllib
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import logging
+from pathlib import Path
 
 LOG = True #write error log
 DISPLAY = False #print to display
@@ -32,6 +37,8 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
         with open("/home/pi/ZBinData/binData.json") as bindata:
                 BININFO = eval( bindata.read() )["bin"][0]
         BinID = BININFO["binID"]
+
+
         #setting GPIO Mode for weight sensor.
         GPIO.setmode(GPIO.BCM)
 
@@ -69,9 +76,9 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
         connected = True #isConnected('localhost',5050)
         err_state = (True,True,True)
 
-        #error log settings
-        err_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S') #append this to log report name
-        logging.basicConfig(level=10, filename='logs/zbinlog{}.txt'.format(err_time) ) #set log report to debugging level (10)
+        #configure error log settings
+        log_file = error_log_set()
+        send_notification(log_file)
 
         #========================ultrasonic set up================================
         GPIO.setup(TRIG,GPIO.OUT)
@@ -285,5 +292,58 @@ def checkServerConnection(n,p):
 def update_log(n_text:str):
         print(n_text+'\n')
 
+#sets up logging capture into file during start up
+def error_log_set():
+        err_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S') #append this to log report name
+      #  log_dir = Path('/logs')
+       # if not log_dir.exists() or not log_dir.is_dir():
+        #        log_dir.mkdir(exist_ok=False)
+        err_log = "logs/zbinlog{}.txt".format(err_time)
+        logging.basicConfig(level=10, filename=err_log ) #set log report to debugging level (10)
+        return err_log
+
+
+#creates a SSL connection to send an email notification w/file location as a parameter
+def send_notification(directory):
+    #==setting up email notif==#
+    with open("/home/pi/ZBinData/binData.json") as emaildata:
+            EMAILINFO = eval( emaildata.read())["bin"][1]
+    emailTarget = EMAILINFO["target"][0]
+
+    smtp_server = "smtp.gmail.com"
+    port = 465
+    login_user = EMAILINFO["User"]
+    login_pass = EMAILINFO["Pass"]
+    context = ssl.create_default_context()
+
+    #email packaging
+    msg_to = emailTarget
+    msg_from = login_user
+    msg_head = "Pi Notification"
+    #formatting email
+    msg = MIMEMultipart()
+    msg["To"] = msg_to
+    msg["From"] = msg_from
+    msg["Subject"] = msg_head
+    try:
+        with open(directory,"rb") as a:
+            part = MIMEBase("application","octet-stream")
+            part.set_payload(a.read())
+        encoders.encode_base64(part)
+        msg.attach(part)
+    except:
+        msg.attach(MIMEText("Error notifcation",plain))
+
+    msg_text = msg.as_string()
+
+    try:
+        with smtplib.SMTP_SSL(smtp_server,port,context=context) as server:
+            server.login(login_user,login_pass)
+            server.sendmail(msg_from,msg_to,msg_text)
+
+    except Exception as e:
+        logging.exception(e)
+
 if __name__ == "__main__":
         main()
+
