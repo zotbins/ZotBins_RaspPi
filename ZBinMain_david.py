@@ -70,6 +70,9 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 
         UT_MAX = 50
         WT_MAX = 100
+        #sensor pinging flags/counters
+        pulse_ping = 0
+        timed_out = False
         
         ut_on = True
         wt_on = True
@@ -137,9 +140,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                         #=============start of ultrasonic measurement===============
                         GPIO.output(TRIG, False)
                         
-                        #sensor pinging flags/counters 
-                        pulse_ping = 0
-                        timed_out = False
+ 
                         if DISPLAY: print("starting sensing")
 
                         #allowing ultrsaonic sensor to settle
