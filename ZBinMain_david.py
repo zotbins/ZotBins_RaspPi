@@ -22,8 +22,8 @@ import logging
 from pathlib import Path
 
 LOG = True #write error log
-DISPLAY = False #print to display
-
+DISPLAY = True #print to display
+FLAGS = True
 def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
         """
         This is the main function that collects data for the
@@ -65,11 +65,12 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
         #===========================debug=============================
         #warning flags and checks
         ut_ping = 0             #ultrasonic timeout keeper, increments once per ping attempt
+        ut_pong = 0
         wt_ping = 0             #weight sensor timeout keeper, only increments on NULL read weights not inaccurate readings
         upload_time = 0 #number of unsuccessful uploads to tippers
-
-        UT_MAX = 50
-        WT_MAX = 100
+        connect_time = 0 #number of unsuccessful network attempts
+        WT_MAX, UT_MAXP, UT_MAXT, TIP_MAX, CT_MAX = 0,0,0,0,0
+        setflags("/home/pi/ZotBins_RaspPi/error_readme.txt")
         #sensor pinging flags/counters
         pulse_ping = 0
         timed_out = False
@@ -81,7 +82,6 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 
         #configure error log settings
         log_file = error_log_set()
-        send_notification(log_file)
 
         #========================ultrasonic set up================================
         GPIO.setup(TRIG,GPIO.OUT)
@@ -130,6 +130,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                                 hx.power_up()
                                 time.sleep(.5)
                                 weight = "NULL"
+                                wt_ping = wt_ping + 1
                                 #continue #ERROR: Large Negative Numbers
 
                         #reset hx711 chip
@@ -158,6 +159,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                         #checks unusual case where sensor never switches to a ready state (always receives noise feedback)
                         if pulse_ping == MAX_ULTRASONIC_PING:
                                 timed_out = True
+                                ut_ping = ut_ping + 1
                                 
                         pulse_ping = 0 #reset pulse_ping to reuse for the 2nd part
 
@@ -169,7 +171,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                         if pulse_ping == MAX_ULTRASONIC_PING or timed_out:
                                 timed_out = True
                                 pulse_duration = 0 #what value is pulse ping if it times out??
-                                ut_ping = ut_ping+1
+                                ut_pong = ut_pong+1
                                 if DISPLAY: print("ultrasonic timed out")
                         else:
                                 pulse_duration = pulse_end - pulse_start
@@ -190,7 +192,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                                 update_log("Time difference: "+str(time.time()-post_time))
 
                         #=======time stall========
-                        time.sleep(120)
+                        time.sleep(10)
 
                         #===================post data locally=====================
                         timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
@@ -259,7 +261,9 @@ def update_tippers(WEIGHT_SENSOR_ID, WEIGHT_TYPE, ULTRASONIC_SENSOR_ID, ULTRASON
                         #ultrasonic sensor data
                         if distance != "NULL" and not timed_out:
                                 d.append({"timestamp": timestamp,"payload": {"distance": distance},"sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
-                                ut_ping = 0 #reset number of failed ultrasonic attempts
+								#reset number of failed ultrasonic attempts
+                                ut_ping = 0
+                                ut_pong = 0
                         upload_time = 0 #reset number of failed updates
                 except Exception as e:
                         print ("Tippers probably disconnected: ", e)
@@ -272,18 +276,48 @@ def update_tippers(WEIGHT_SENSOR_ID, WEIGHT_TYPE, ULTRASONIC_SENSOR_ID, ULTRASON
         conn.commit()
         
 def fail_check():
-        prev_ut,prev_wt,prev_on = err_state
+	#save previous err_state to prevent spamming (ie state hasn't changed)
+	prev_ut,prev_wt,prev_ct = err_state
+	
+	#tolerance checking
+	if ut_ping > UT_MAXP:
+		logging.warning("ultrasonic sensor failed to restart")
+		ut_on = False
+	else:
+		ut_on = True
+	if ut_pong > UT_MAXT:
+		ut_on = False
+		logging.warning("ultrasonic sensor failed to respond")
+	else:
+		ut_on = True
+	if wt_ping > WT_MAX:
+		wt_on = False
+		logging.warning("load sensor failed to respond")
+	else:
+		wt_on = True
+	if connect_time > CT_MAX:
+		connected = False
+		logging.warning("Pi is not connected to the network")
+	else:
+		connected = True
+	if upload_time > TIP_MAX:
+		connected = False
+		logging.warning("Tippers failed to respond")
+	else:
+		connected = True
+	
+	'''
         if not connected:
                 try:
                         check_network = checkLocalConnection('localhost',80)
                         check_internet = checkServerConnection('tippers',0)
                 except TimeoutError:
-                        return
-        if ut_on != prev_ut and ut_ping == 0:
-                ut_on = prev_ut
-        if wt_on != prev_on and wt_ping == 0:
-                wt_on = prev_wt
-        err_state = (ut_on,wt_on,connected)
+                        break
+	'''
+	#check to see if errstate has changed
+	if err_state != (ut_on,wt_on,connected):
+		err_state = (ut_on,wt_on,connected)
+		send_notification(log_file)
 
 def checkLocalConnection(n,p):
         return
@@ -344,6 +378,31 @@ def send_notification(directory):
 
     except Exception as e:
         logging.exception(e)
+		
+#reads the presets for flag limits for error tolerances
+def setflags(file:str):
+	try:
+		with open(file) as f:
+			line = f.readline()
+			while line != "":
+				if line.strip() == "***": #skip to presets
+					WT_MAX = f.readline().split(':')[1]
+					UT_MAXP = f.readline().split(':')[1]
+					UT_MAXT = f.readline().split(':')[1]
+					TIP_MAX = f.readline().split(':')[1]
+					CT_MAX = f.readline().split(':')[1]
+					if FLAGS:
+						f.readline() #ignore comments for demo testing
+						wt_on = f.readline().split(':')[1]
+						ut_on = f.readline().split(':')[1]
+						connected = f.readline().split(':')[1]
+						print(wt_on,ut_on,connected)
+					print(WT_MAX,UT_MAXP,UT_MAXT,TIP_MAX,CT_MAX)
+					break
+				line = f.readline()	
+	except Exception as e:
+		logging.exception("Expected error_readme.txt file in directory")
+			
 
 if __name__ == "__main__":
         main()
