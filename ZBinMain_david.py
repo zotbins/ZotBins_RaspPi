@@ -1,3 +1,4 @@
+    
 #compiled in python3#
 #====timestamps imports=========
 import time
@@ -48,7 +49,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
 
         #GPIO port numbers
         HX711IN = 5             #weight sensor in
-        HX711OUT = 6    #weight sensor out
+        HX711OUT = 6    		#weight sensor out
         TRIG = 23               #ultrasonic sensor in
         ECHO = 24               #ultrasonic sensor out
 
@@ -62,6 +63,9 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                 "Accept": "application/json"
         }
 
+        #configure error log settings
+        log_file = error_log_set()
+
         #===========================debug=============================
         #warning flags and checks
         ut_ping = 0             #ultrasonic timeout keeper, increments once per ping attempt
@@ -69,8 +73,12 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
         wt_ping = 0             #weight sensor timeout keeper, only increments on NULL read weights not inaccurate readings
         upload_time = 0 #number of unsuccessful uploads to tippers
         connect_time = 0 #number of unsuccessful network attempts
+        
+        
         WT_MAX, UT_MAXP, UT_MAXT, TIP_MAX, CT_MAX = 0,0,0,0,0
-        setflags("/home/pi/ZotBins_RaspPi/error_readme.txt")
+        F_MAX = setflags("/home/pi/ZotBins_RaspPi/error_readme.txt")
+        MAX = F_MAX #for saving old threshold values
+        
         #sensor pinging flags/counters
         pulse_ping = 0
         timed_out = False
@@ -78,10 +86,8 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
         ut_on = True
         wt_on = True
         connected = True #isConnected('localhost',5050)
-        err_state = (True,True,True)
+        err_state = True,True,True
 
-        #configure error log settings
-        log_file = error_log_set()
 
         #========================ultrasonic set up================================
         GPIO.setup(TRIG,GPIO.OUT)
@@ -200,17 +206,19 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 600):
                         if DISPLAY: update_log("data added successfully to sqlite")
                         #====================post data to Tippers==================
                         #check if it is time to post
+                        #else: Not time to Update TIPPERS yet
                         if (time.time() - post_time > FREQUENCY_SECONDS) and SEND_DATA:
                                 #update tippers with all the data from local database
                                 update_tippers(WEIGHT_SENSOR_ID, WEIGHT_TYPE, ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO)
                                 post_time = time.time() #reset post_time
-                        else:
-                                continue #Not time to Update TIPPERS yet
-                        fail_check()
+                        #error checking setup
+                        flags = ut_ping,ut_pong,wt_ping,connect_time,upload_time
+                        err_state,MAX = fail_check(err_state,flags,MAX,F_MAX,log_file)
 
         except KeyboardInterrupt:
             if DISPLAY: update_log("Cleaning...")
             GPIO.cleanup()
+            logging.shutdown()
             if DISPLAY: update_log("Bye!")
             sys.exit()
 
@@ -261,7 +269,7 @@ def update_tippers(WEIGHT_SENSOR_ID, WEIGHT_TYPE, ULTRASONIC_SENSOR_ID, ULTRASON
                         #ultrasonic sensor data
                         if distance != "NULL" and not timed_out:
                                 d.append({"timestamp": timestamp,"payload": {"distance": distance},"sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
-								#reset number of failed ultrasonic attempts
+                                #reset number of failed ultrasonic attempts
                                 ut_ping = 0
                                 ut_pong = 0
                         upload_time = 0 #reset number of failed updates
@@ -274,50 +282,68 @@ def update_tippers(WEIGHT_SENSOR_ID, WEIGHT_TYPE, ULTRASONIC_SENSOR_ID, ULTRASON
         #after updating tippers delete from local database
         conn.execute("DELETE from BINS")
         conn.commit()
-        
-def fail_check():
-	#save previous err_state to prevent spamming (ie state hasn't changed)
-	prev_ut,prev_wt,prev_ct = err_state
-	
-	#tolerance checking
-	if ut_ping > UT_MAXP:
-		logging.warning("ultrasonic sensor failed to restart")
-		ut_on = False
-	else:
-		ut_on = True
-	if ut_pong > UT_MAXT:
-		ut_on = False
-		logging.warning("ultrasonic sensor failed to respond")
-	else:
-		ut_on = True
-	if wt_ping > WT_MAX:
-		wt_on = False
-		logging.warning("load sensor failed to respond")
-	else:
-		wt_on = True
-	if connect_time > CT_MAX:
-		connected = False
-		logging.warning("Pi is not connected to the network")
-	else:
-		connected = True
-	if upload_time > TIP_MAX:
-		connected = False
-		logging.warning("Tippers failed to respond")
-	else:
-		connected = True
-	
-	'''
+'''
+checks each flag to see if they fall within the fault tolerances. It will update each flag with a new threshold until the next failure. There is no max threshold, but the minimum will stay at its preset values. The function will take in the previous err_state and update it if a new failure occurs and send a new notification downloading the current error log (log_file) to email. Returns a err_state (three boolean tuple)
+'''
+def fail_check(prev_err,flags,MAX,old_MAX,err_log):
+    #save previous err_state to prevent spamming (ie state hasn't changed)
+    prev_ut,prev_wt,prev_ct = prev_err
+    ut_ping,ut_pong,wt_ping,connect_time,upload_time = flags
+    UT_MAXP,UT_MAXT,WT_MAX,CT_MAX,TIP_MAX = MAX
+    
+    if DISPLAY: print(flags)
+    
+    #tolerance checking
+    if ut_ping > UT_MAXP:
+        logging.warning("ultrasonic sensor failed to restart")
+        ut_on = False
+        UT_MAXP = UT_MAXP*2
+    else:
+        ut_on = True
+        UT_MAXP = old_MAX[0]
+    if ut_pong > UT_MAXT:
+        ut_on = False
+        logging.warning("ultrasonic sensor failed to respond")
+        UT_MAXT = UT_MAXT*2
+    else:
+        ut_on = True
+        UT_MAXT = old_MAX[1]
+    if wt_ping > WT_MAX:
+        wt_on = False
+        logging.warning("load sensor failed to respond")
+        WT_MAX = WT_MAX*2
+    else:
+        wt_on = True
+        WT_MAX = old_MAX[2]
+    if connect_time > CT_MAX:
+        connected = False
+        logging.warning("Pi is not connected to the network")
+        CT_MAX = CT_MAX*2
+    else:
+        connected = True
+        CT_MAX = old_MAX[3]
+    if upload_time > TIP_MAX:
+        connected = False
+        logging.warning("Tippers failed to respond")
+        TIP_MAX = TIP_MAX+5
+    else:
+        connected = True
+        TIP_MAX = old_MAX[4]
+   
+    '''
         if not connected:
                 try:
                         check_network = checkLocalConnection('localhost',80)
                         check_internet = checkServerConnection('tippers',0)
                 except TimeoutError:
                         break
-	'''
-	#check to see if errstate has changed
-	if err_state != (ut_on,wt_on,connected):
-		err_state = (ut_on,wt_on,connected)
-		send_notification(log_file)
+    '''
+    #check to see if errstate and MAX values have changed
+    if prev_err != (ut_on,wt_on,connected):
+        send_notification(err_log)
+        prev_err = ut_on,wt_on,connected
+    MAX =  UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
+    return prev_err,MAX
 
 def checkLocalConnection(n,p):
         return
@@ -330,11 +356,10 @@ def update_log(n_text:str):
 #sets up logging capture into file during start up
 def error_log_set():
         err_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S') #append this to log report name
-      #  log_dir = Path('/logs')
-       # if not log_dir.exists() or not log_dir.is_dir():
-        #        log_dir.mkdir(exist_ok=False)
         err_log = "logs/zbinlog{}.txt".format(err_time)
-        logging.basicConfig(level=10, filename=err_log ) #set log report to debugging level (10)
+        logging.basicConfig(filename=err_log, level=logging.WARNING, format='%(asctime)s %(message)s') #set log report to debugging level (10)
+        logging.captureWarnings(True) #will capture all warnings to the log
+        if DISPLAY: print("error log capture ON")
         return err_log
 
 
@@ -378,32 +403,43 @@ def send_notification(directory):
 
     except Exception as e:
         logging.exception(e)
-		
+        
 #reads the presets for flag limits for error tolerances
 def setflags(file:str):
-	try:
-		with open(file) as f:
-			line = f.readline()
-			while line != "":
-				if line.strip() == "***": #skip to presets
-					WT_MAX = f.readline().split(':')[1]
-					UT_MAXP = f.readline().split(':')[1]
-					UT_MAXT = f.readline().split(':')[1]
-					TIP_MAX = f.readline().split(':')[1]
-					CT_MAX = f.readline().split(':')[1]
-					if FLAGS:
-						f.readline() #ignore comments for demo testing
-						wt_on = f.readline().split(':')[1]
-						ut_on = f.readline().split(':')[1]
-						connected = f.readline().split(':')[1]
-						print(wt_on,ut_on,connected)
-					print(WT_MAX,UT_MAXP,UT_MAXT,TIP_MAX,CT_MAX)
-					break
-				line = f.readline()	
-	except Exception as e:
-		logging.exception("Expected error_readme.txt file in directory")
-			
+    """
+    Sets the tolerance values for the sensors.
+    """
+    try:
+        with open(file) as f:
+            line = f.readline()
+            while line != "":
+                if line.strip() == "***": #skip to presets
+                    WT_MAX = f.readline().split(':')[1]
+                    UT_MAXP = f.readline().split(':')[1]
+                    UT_MAXT = f.readline().split(':')[1]
+                    TIP_MAX = f.readline().split(':')[1]
+                    CT_MAX = f.readline().split(':')[1]
+                    
+                    '''#ignore comments for demo testing
+                    if FLAGS:
+                        f.readline() 
+                        wt_on = f.readline().split(':')[1]
+                        ut_on = f.readline().split(':')[1]
+                        connected = f.readline().split(':')[1]
+                       ''' 
+                    return UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
+                line = f.readline() 
+    except FileNotFoundError: 
+        logging.warning(" error_readme.txt not found. Using preset values")
+        WT_MAX = 5
+        UT_MAXP = 1 #sees if ultrasonic sensor is not connected. if echo didn't reset.
+        UT_MAXT = 1 #sees if ultrasonic sensor is not working. if it doesn't receive.
+        TIP_MAX = 5
+        CT_MAX = 10
+        return UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
+    except Exception as e:
+        logging.exception("Expected error_readme.txt file in directory")
+            
 
 if __name__ == "__main__":
         main()
-
