@@ -13,7 +13,7 @@ from hx711 import HX711
 #======other imports=============
 import sqlite3
 from socket import *
-import smtplib, ssl, urllib
+import smtplib, ssl, http.client
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -21,10 +21,10 @@ from email.mime.text import MIMEText
 import logging
 from pathlib import Path
 
-LOG = True # write error log
-DISPLAY = True # print to display
-FLAGS = True # toggles
-upload_time = 0 #global flag tracking number of failed attempts to upload to tippers
+DISPLAY = True # prints values to terminal for debugging
+FLAGS = False # shows preset values for flag tolerances
+upload_time = 0 #flag tracking number of failed attempts to upload to tippers
+connect_time = 0 #flag tracking number of unsuccessful network attempts
 
 def main(SEND_DATA=True, FREQUENCY_SECONDS = 60): #RESET FREQUENCY_SECONDS to 600
 	"""
@@ -73,7 +73,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 60): #RESET FREQUENCY_SECONDS to 60
 	ut_pong = 0
 	wt_ping = 0             #weight sensor timeout keeper, only increments on NULL read weights not inaccurate readings
 	#upload_time = 0 #number of unsuccessful uploads to tippers
-	connect_time = 0 #number of unsuccessful network attempts
+	#connect_time = 0 #number of unsuccessful network attempts
 	
 	
 	WT_MAX, UT_MAXP, UT_MAXT, TIP_MAX, CT_MAX = 0,0,0,0,0
@@ -215,7 +215,7 @@ def main(SEND_DATA=True, FREQUENCY_SECONDS = 60): #RESET FREQUENCY_SECONDS to 60
 			#====================post data to Tippers==================
 			#check if it is time to post
 			#else: Not time to Update TIPPERS yet
-			if (time.time() - post_time > FREQUENCY_SECONDS) and SEND_DATA:
+			if (time.time() - post_time > FREQUENCY_SECONDS) and SEND_DATA and checkLocalConnection("www.google.com"):
 				#update tippers with all the data from local database
 				update_tippers(WEIGHT_SENSOR_ID, WEIGHT_TYPE, ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO)
 				post_time = time.time() #reset post_time
@@ -353,8 +353,21 @@ def fail_check(prev_err,flags,MAX,old_MAX,err_log):
     MAX =  UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
     return prev_err,MAX
 
-def checkLocalConnection(n,p):
-	return
+def checkLocalConnection(url:'urlconnection')->bool:
+        connection = http.client.HTTPConnection(url,timeout=5)
+        response = 0
+        try:
+                connection.request("HEAD","/") #server HELO
+                response = connection.getresponse()
+                connect_time = 0 #reset flag once successfully connected
+                return True
+        except:
+                if DISPLAY: updatelog("Could not connect online")
+                connect_time = connect_time+1
+                return False
+        finally:
+                connection.close()
+        
 '''checks to see if Tippers is online to'''
 def checkServerConnection(n,p): 
 	return
