@@ -85,11 +85,11 @@ class ZotBins():
 
             #========Measure the Distance==============================
             x = self.measure_dist(distSim)
-            #print(x)
+            print("Distance =",x)
 
             #=========Measure the Weight===============================
             y = self.measure_weight(weightSim)
-            print("Weight",y)
+            print("Weight =",y)
 
             #=========Format the data==================================
 
@@ -106,7 +106,7 @@ class ZotBins():
         This function measures the weight. It measures the weights 11 times,
         sorts it, and returns the median.
         """
-        if siumulate:
+        if simulate:
             return 0.0
         else:
             #array to collect the weight measurements
@@ -117,7 +117,7 @@ class ZotBins():
                 derek.append(self.hx.get_weight(5))
                 self.hx.power_down()
                 self.hx.power_up()
-                time.sleep(0.5)
+                time.sleep(0.25)
 
             return sorted(derek)[5]
 
