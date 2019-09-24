@@ -56,11 +56,30 @@ class ZotBins():
         """
         Runs the data collection algorithm
         """
+        #=======Parse JSON=========
+        bininfo = self.parseJSON()
+        print(bininfo)
 
-        #========Measure the Distance=========
-        x = self.measure_dist()
-        print(x)
+        #=======MAIN LOOP==========
+        while True:
 
+            #========Measure the Distance==============================
+            x = self.measure_dist()
+            print(x)
+
+            #=========Measure the Weight===============================
+
+            #=========Format the data==================================
+
+            #=========Write to Local===================================
+
+            #=========Write to Tippers=================================
+
+            #========Sleep to Control Frequency of Data Aquisition=====
+            time.sleep(self.frequencySec)
+
+            #temporary for testing
+            break
 
     def measure_dist(self,simulate=False):
         """
@@ -113,5 +132,5 @@ class ZotBins():
         return bininfo
 
 if __name__ == "__main__":
-    zot = ZotBins(sendData=True,frequencySec=600,sim=False) #initialize the ZotBins object
+    zot = ZotBins(sendData=True,frequencySec=10,sim=False) #initialize the ZotBins object
     zot.run() #run the data collection algorithm
