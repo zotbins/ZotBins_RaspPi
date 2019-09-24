@@ -104,13 +104,13 @@ class ZotBins():
             return distance
 
     def parseJSON(self):
-        """
-        This function parses the json file in the absolute path
-        of '/home/pi/ZBinData/binData.json' and returns a dictionary
-        """
-    	with open("/home/pi/ZBinData/binData.json") as bindata:
-    		bininfo = eval( bindata.read() )["bin"][0]
-        return bininfo
+    """
+    This function parses the json file in the absolute path
+    of '/home/pi/ZBinData/binData.json' and returns a dictionary
+    """
+	with open("/home/pi/ZBinData/binData.json") as bindata:
+    	bininfo = eval( bindata.read() )["bin"][0]
+    return bininfo
 
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=600,sim=False) #initialize the ZotBins object
