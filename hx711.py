@@ -1,3 +1,8 @@
+"""
+Modified for use with python3.
+Original Code Credits: https://github.com/tatobari/hx711py
+"""
+
 import RPi.GPIO as GPIO
 import time
 import numpy  # sudo apt-get python-numpy
