@@ -121,7 +121,6 @@ class ZotBins():
 
             return sorted(derek)[5]
 
-
     def measure_dist(self,simulate=False):
         """
         This function uses the ultrasonic sensor to measure the distance.
@@ -173,7 +172,7 @@ class ZotBins():
         return bininfo
 
 if __name__ == "__main__":
-    zot = ZotBins(sendData=True,frequencySec=10,sim=False) #initialize the ZotBins object
+    zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
     try:
         zot.run(distSim=True,weightSim=False) #run the data collection algorithm
     finally:
