@@ -85,11 +85,11 @@ class ZotBins():
 
             #========Measure the Distance==============================
             x = self.measure_dist(distSim)
-            print(x)
+            #print(x)
 
             #=========Measure the Weight===============================
             y = self.measure_weight(weightSim)
-            print(y)
+            print("Weight",y)
 
             #=========Format the data==================================
 
@@ -100,8 +100,6 @@ class ZotBins():
             #========Sleep to Control Frequency of Data Aquisition=====
             time.sleep(self.frequencySec)
 
-            #temporary for testing
-            break
 
     def measure_weight(self,simulate=False):
         """
