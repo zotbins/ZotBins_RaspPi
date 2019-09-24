@@ -39,7 +39,7 @@ while True:
         #np_arr8_string = hx.get_np_arr8_string()
         #binary_string = hx.get_binary_string()
         #print binary_string + " " + np_arr8_string
-        
+
         # Prints the weight. Comment if you're debbuging the MSB and LSB issue.
         val = hx.get_weight(5)
         print val

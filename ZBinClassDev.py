@@ -72,7 +72,7 @@ class ZotBins():
         	"Accept": "application/json"
         }
 
-    def run(self,sim=False):
+    def run(self,distSim=False,weightSim=False):
         """
         Runs the data collection algorithm
         sim<bool>: if there are no sensors, users may simulate getting data
@@ -82,11 +82,11 @@ class ZotBins():
         while True:
 
             #========Measure the Distance==============================
-            x = self.measure_dist(sim)
+            x = self.measure_dist(distSim)
             print(x)
 
             #=========Measure the Weight===============================
-            y = self.measure_weight(sim)
+            y = self.measure_weight(weightSim)
             print(y)
 
             #=========Format the data==================================
@@ -175,7 +175,7 @@ class ZotBins():
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10,sim=False) #initialize the ZotBins object
     try:
-        zot.run() #run the data collection algorithm
+        zot.run(distSim=True,weightSim=False) #run the data collection algorithm
     finally:
         GPIO.cleanup()
         sys.exit()
