@@ -43,12 +43,14 @@ class ZotBins():
         #extract the json info
         bininfo = self.parseJSON()
 
+        #====General GPIO Setup====================
+        GPIO.setmode(GPIO.BCM) #for weight sensor
+
         #====set up Ultrasonic GPIO pins============
         GPIO.setup(GPIO_TRIGGER, GPIO.OUT) #for ultrasonic sensor
         GPIO.setup(GPIO_ECHO, GPIO.IN) #for ultrasonic sensor
 
         #=====setup hx711 GPIO pins=================
-        GPIO.setmode(GPIO.BCM) #for weight sensor
         self.hx = HX711(HX711IN, HX711OUT)
         self.hx.set_reading_format("LSB", "MSB")
         self.hx.set_reference_unit(float( bininfo["weightCal"] ))
