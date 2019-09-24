@@ -32,7 +32,16 @@ HX711OUT = 6	  #weight sensor out
 
 
 class ZotBins():
-    def __init__(self,sendData=True,frequencySec=600):
+    def __init__(self,sendData=True,frequencySec=600,sim=False):
+        """
+        sendData<Bool>: determines whether or not the algortihm should
+            send data to the tippers database or
+            just save the data locally.
+        frequencySec<int>: determines the sampling rate of which the
+            algorithm collects data
+        sim<bool>: if there are no sensors, users may simulate getting data
+            from the sensors by assigning this variable as True.
+        """
         #========class variables for data collection algorithm=========
         self.sendData=sendData
         self.frequencySec=frequencySec
@@ -49,53 +58,60 @@ class ZotBins():
         """
 
         #========Measure the Distance=========
-        x = measure_dist()
+        x = self.measure_dist()
         print(x)
 
 
-    def measure_dist():
+    def measure_dist(self,simulate=False):
         """
         This function uses the ultrasonic sensor to measure the distance.
         TRIG - should be connected to pin 23
         ECHO - should be connected to pin 24
         Vcc  - should be connected to 5V pin
         GND  - should be connected to a GND pin (straight-foward)
+
+        If there is no ultrasonic sensor connected. You may use set the
+        parameter 'simulate' to True in order to generate a value to return
+        without using the ultrasonic sensor
         """
-        # set Trigger to HIGH
-        GPIO.output(GPIO_TRIGGER, True)
+        if simulate:
+            return 0.0
+        else:
+            # set Trigger to HIGH
+            GPIO.output(GPIO_TRIGGER, True)
 
-        # set Trigger after 0.01ms to LOW
-        time.sleep(0.00001)
-        GPIO.output(GPIO_TRIGGER, False)
+            # set Trigger after 0.01ms to LOW
+            time.sleep(0.00001)
+            GPIO.output(GPIO_TRIGGER, False)
 
-        StartTime = time.time()
-        StopTime = time.time()
-
-        # save StartTime
-        while GPIO.input(GPIO_ECHO) == 0:
             StartTime = time.time()
-
-        # save time of arrival
-        while GPIO.input(GPIO_ECHO) == 1:
             StopTime = time.time()
 
-        # time difference between start and arrival
-        TimeElapsed = StopTime - StartTime
-        # multiply with the sonic speed (34300 cm/s)
-        # and divide by 2, because there and back
-        distance = (TimeElapsed * 34300) / 2
+            # save StartTime
+            while GPIO.input(GPIO_ECHO) == 0:
+                StartTime = time.time()
 
-        return distance
+            # save time of arrival
+            while GPIO.input(GPIO_ECHO) == 1:
+                StopTime = time.time()
 
+            # time difference between start and arrival
+            TimeElapsed = StopTime - StartTime
+            # multiply with the sonic speed (34300 cm/s)
+            # and divide by 2, because there and back
+            distance = (TimeElapsed * 34300) / 2
 
-    def parseJSON():
+            return distance
+
+    def parseJSON(self):
         """
         This function parses the json file in the absolute path
-        of '/home/pi/ZBinData/binData.json' and returns a list
+        of '/home/pi/ZBinData/binData.json' and returns a dictionary
         """
-        pass
-
+    	with open("/home/pi/ZBinData/binData.json") as bindata:
+    		bininfo = eval( bindata.read() )["bin"][0]
+        return bininfo
 
 if __name__ == "__main__":
-    zot = ZotBins(sendData=True,frequencySec=600) #initialize the ZotBins object
+    zot = ZotBins(sendData=True,frequencySec=600,sim=False) #initialize the ZotBins object
     zot.run() #run the data collection algorithm
