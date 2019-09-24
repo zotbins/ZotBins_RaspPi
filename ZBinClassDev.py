@@ -84,22 +84,24 @@ class ZotBins():
         while True:
 
             #========Measure the Distance==============================
-            x = self.measure_dist(distSim)
-            print("Distance =",x)
+            distance = self.measure_dist(distSim)
+            print("Distance =",distance)
 
             #=========Measure the Weight===============================
-            y = self.measure_weight(weightSim)
-            print("Weight =",y)
+            weight = self.measure_weight(weightSim)
+            print("Weight =",weight)
 
-            #=========Format the data==================================
+            #=========Extract timestamp=================================
+            #'distance' and 'weight' variable defined in main loop in above lines
+            timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
             #=========Write to Local===================================
+            self.add_data_to_local(timestamp,weight,distance)
 
             #=========Write to Tippers=================================
 
             #========Sleep to Control Frequency of Data Aquisition=====
             time.sleep(self.frequencySec)
-
 
     def measure_weight(self,simulate=False):
         """
@@ -171,10 +173,44 @@ class ZotBins():
         	bininfo = eval( bindata.read() )["bin"][0]
         return bininfo
 
+    def null_check_convert(self,value):
+    	"""
+        [CURRENTLY UNUSED FUNCTION]
+    	This function checks whether or not the given value is
+    	the string "NULL" and converts it to a float if necessary.
+    	value: a float or a string "NULL" that represents weight or distance data.
+    	"""
+    	if value == "NULL":
+    		#wt_ping = wt_ping + 1
+    		return 0.0
+    	else:
+    		assert(type(value)==float)
+    		return value
+
+    def add_data_to_local(self,timestamp, weight, distance):
+    	"""
+    	This function adds timestamp, weight, and distance data
+    	to the SQLite data base located in "/home/pi/ZBinData/zotbin.db"
+    	timestamp<str>: in the format '%Y-%m-%d %H:%M:%S'
+    	weight<float>: float that represents weight in grams
+    	distance<float>: float that represents distance in cm
+    	"""
+    	conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
+    	conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
+    		"TIMESTAMP"	TEXT NOT NULL,
+    		"WEIGHT"	REAL,
+    		"DISTANCE"	REAL
+    	);
+    	''')
+    	conn.execute("INSERT INTO BINS (TIMESTAMP,WEIGHT,DISTANCE)\nVALUES ('{}',{},{})"\.format(timestamp,weight,distance))
+    	conn.commit()
+    	conn.close()
+
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
     try:
         zot.run(distSim=True,weightSim=False) #run the data collection algorithm
-    finally:
+    except Exception as e:
+        print("Exception raised:",e)
         GPIO.cleanup()
         sys.exit()
