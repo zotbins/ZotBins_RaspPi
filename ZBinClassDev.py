@@ -216,10 +216,12 @@ class ZotBins():
     		try:
     			#weight sensor data
     			if weight != "NULL":
-    				d.append( {"timestamp": timestamp, "payload": {"weight": weight}, "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
+    				d.append( {"timestamp": timestamp, "payload": {"weight": weight},
+                               "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
     			#ultrasonic sensor data
     			if distance != "NULL":
-    				d.append({"timestamp": timestamp,"payload": {"distance": distance},"sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
+    				d.append({"timestamp": timestamp,"payload": {"distance": distance},
+                    "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
     		except Exception as e:
     			print ("Tippers probably disconnected: ", e)
     			return
@@ -233,7 +235,8 @@ if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
     try:
         zot.run(distSim=True,weightSim=False) #run the data collection algorithm
-    except Exception as e:
+    #except Exception as e:
+    finally:
         print("Exception raised:",e)
         GPIO.cleanup()
         sys.exit()
