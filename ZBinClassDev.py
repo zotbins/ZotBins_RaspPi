@@ -19,6 +19,9 @@ from hx711 import HX711
 import json
 import requests
 
+#=====logging import===========
+import logging
+
 #======other imports=============
 import sys
 import sqlite3
@@ -62,6 +65,11 @@ class ZotBins():
         self.sendData=sendData
         self.frequencySec=frequencySec
 
+        #error checking variables
+        start_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
+        self.log_file = "logs/zbinlog_{}.txt".format(start_time)
+        logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='%(asctime)s %(message)s')
+
         #========Query Information======================================
         #assign variables
         self.binID = bininfo["binID"]
@@ -81,29 +89,34 @@ class ZotBins():
         weightCollect<bool>:    Parameter that specifies whether or not weight data should be collected.
         tippersPush<bool>:      Parameter that specifies whether or not local data should be pushed to Tippers.
         distSim<bool>:          Specifies whether to simulate distance data or use the physical ultrasonic sensor.
+                                If True, it returns the default value: 60.0 (cm)
         weightSim<bool>:        Specifies whether to simulate weight data or use the physical weight sensor for data.
+                                If True, it returns the default value: 0.0 (cm)
         """
         #=======MAIN LOOP==========
         while True:
+            try:
+                #=========Measure the Weight===============================
+                weight = self.measure_weight(weightCollect,weightSim)
+                print("Weight =",weight)
 
-            #========Measure the Distance==============================
-            distance = self.measure_dist(ultCollect,distSim)
+                #========Measure the Distance==============================
+                distance = self.measure_dist(ultCollect,distSim)
+                raise StandardError("This is a generated exception for testing")
 
-            #=========Measure the Weight===============================
-            weight = self.measure_weight(weightCollect,weightSim)
-            print("Weight =",weight)
+                #=========Extract timestamp=================================
+                #'distance' and 'weight' variable defined in main loop in above lines
+                timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
-            #=========Extract timestamp=================================
-            #'distance' and 'weight' variable defined in main loop in above lines
-            timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+                #=========Write to Local===================================
+                self.add_data_to_local(timestamp,weight,distance)
 
-            #=========Write to Local===================================
-            self.add_data_to_local(timestamp,weight,distance)
+                #=========Write to Tippers=================================
 
-            #=========Write to Tippers=================================
-
-            #========Sleep to Control Frequency of Data Aquisition=====
-            time.sleep(self.frequencySec)
+                #========Sleep to Control Frequency of Data Aquisition=====
+                time.sleep(self.frequencySec)
+            except Exception as e:
+                self.catch(e)
 
     def measure_weight(self,collect=True,simulate=False):
         """
@@ -145,10 +158,10 @@ class ZotBins():
         collect<bool>
         simulate<bool>
         """
-        distance = 'NULL'
+        distance = "NULL"
         if collect:
             if simulate:
-                return 0.0
+                return 60.0
             else:
                 # set Trigger to HIGH
                 GPIO.output(GPIO_TRIGGER, True)
@@ -242,12 +255,18 @@ class ZotBins():
     	conn.execute("DELETE from BINS")
     	conn.commit()
 
+    def catch(self,e):
+        '''
+        Called when an error is raised during the ZotBins run(). Will capture exception
+        into a logging file.
+        '''
+        logging.exception(e)
+
+
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
     try:
-        zot.run(ultCollect=False,weightCollect=False,distSim=True,weightSim=False) #run the data collection algorithm
-    #except Exception as e:
+        zot.run(ultCollect=True,weightCollect=True,distSim=True,weightSim=True) #run the data collection algorithm
     finally:
-        print("Exception raised:",e)
         GPIO.cleanup()
         sys.exit()
