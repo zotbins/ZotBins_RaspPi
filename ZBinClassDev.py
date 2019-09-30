@@ -21,6 +21,7 @@ import requests
 
 #=====logging import===========
 import logging
+from pathlib import Path
 
 #======other imports=============
 import sys
@@ -66,9 +67,7 @@ class ZotBins():
         self.frequencySec=frequencySec
 
         #error checking variables
-        start_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
-        self.log_file = "logs/zbinlog_{}.txt".format(start_time)
-        logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='%(asctime)s %(message)s')
+        self.log_setup()
 
         #========Query Information======================================
         #assign variables
@@ -261,6 +260,16 @@ class ZotBins():
         into a logging file.
         '''
         logging.exception(e)
+
+    def log_setup(self):
+        start_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+        #check to see if there is a directory for logging errors
+        p = Path('logs')
+        if not p.exists() or not p.is_dir():
+            p.mkdir()
+        #generate a log file with name with start of run
+        self.log_file = "logs/zbinlog_{}.csv".format(start_time)
+        logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='"%(asctime)s","%(message)s"')
 
 
 if __name__ == "__main__":
