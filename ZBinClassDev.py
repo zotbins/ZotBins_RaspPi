@@ -74,21 +74,23 @@ class ZotBins():
         	"Accept": "application/json"
         }
 
-    def run(self,distSim=False,weightSim=False):
+    def run(self,ultCollect=True,weightCollect=True,tippersPush=True,distSim=False,weightSim=False):
         """
-        Runs the data collection algorithm
-        sim<bool>: if there are no sensors, users may simulate getting data
-            from the sensors by assigning this variable as True.
+        This function runs the data collection algorithm
+        ultCollect<bool>:       Parameter that specifies if the bin can ultrasense. Default set to true.
+        weightCollect<bool>:    Parameter that specifies whether or not weight data should be collected.
+        tippersPush<bool>:      Parameter that specifies whether or not local data should be pushed to Tippers.
+        distSim<bool>:          Specifies whether to simulate distance data or use the physical ultrasonic sensor.
+        weightSim<bool>:        Specifies whether to simulate weight data or use the physical weight sensor for data.
         """
         #=======MAIN LOOP==========
         while True:
 
             #========Measure the Distance==============================
-            distance = self.measure_dist(distSim)
-            print("Distance =",distance)
+            distance = self.measure_dist(ultCollect,distSim)
 
             #=========Measure the Weight===============================
-            weight = self.measure_weight(weightSim)
+            weight = self.measure_weight(weightCollect,weightSim)
             print("Weight =",weight)
 
             #=========Extract timestamp=================================
@@ -103,27 +105,32 @@ class ZotBins():
             #========Sleep to Control Frequency of Data Aquisition=====
             time.sleep(self.frequencySec)
 
-    def measure_weight(self,simulate=False):
+    def measure_weight(self,collect=True,simulate=False):
         """
-        This function measures the weight. It measures the weights 11 times,
+        This function measures the weight, if collect is True. It measures the weights 11 times,
         sorts it, and returns the median.
+
+        collect<bool>
+        simulate<bool>
         """
-        if simulate:
-            return 0.0
-        else:
-            #array to collect the weight measurements
-            derek = []
+        if collect:
+            if simulate:
+                return 0.0
+            else:
+                #array to collect the weight measurements
+                derek = []
 
-            #collect a list of weight measurements
-            for i in range(11):
-                derek.append(self.hx.get_weight(5))
-                self.hx.power_down()
-                self.hx.power_up()
-                time.sleep(0.25)
+                #collect a list of weight measurements
+                for i in range(11):
+                    derek.append(self.hx.get_weight(5))
+                    self.hx.power_down()
+                    self.hx.power_up()
+                    time.sleep(0.25)
 
-            return sorted(derek)[5]
+                return sorted(derek)[5]
+        return "NULL"
 
-    def measure_dist(self,simulate=False):
+    def measure_dist(self,collect=True,simulate=False):
         """
         This function uses the ultrasonic sensor to measure the distance.
         TRIG - should be connected to pin 23
@@ -134,35 +141,40 @@ class ZotBins():
         If there is no ultrasonic sensor connected. You may use set the
         parameter 'simulate' to True in order to generate a value to return
         without using the ultrasonic sensor
+
+        collect<bool>
+        simulate<bool>
         """
-        if simulate:
-            return 0.0
-        else:
-            # set Trigger to HIGH
-            GPIO.output(GPIO_TRIGGER, True)
+        distance = 'NULL'
+        if collect:
+            if simulate:
+                return 0.0
+            else:
+                # set Trigger to HIGH
+                GPIO.output(GPIO_TRIGGER, True)
 
-            # set Trigger after 0.01ms to LOW
-            time.sleep(0.00001)
-            GPIO.output(GPIO_TRIGGER, False)
+                # set Trigger after 0.01ms to LOW
+                time.sleep(0.00001)
+                GPIO.output(GPIO_TRIGGER, False)
 
-            StartTime = time.time()
-            StopTime = time.time()
-
-            # save StartTime
-            while GPIO.input(GPIO_ECHO) == 0:
                 StartTime = time.time()
-
-            # save time of arrival
-            while GPIO.input(GPIO_ECHO) == 1:
                 StopTime = time.time()
 
-            # time difference between start and arrival
-            TimeElapsed = StopTime - StartTime
-            # multiply with the sonic speed (34300 cm/s)
-            # and divide by 2, because there and back
-            distance = (TimeElapsed * 34300) / 2
+                # save StartTime
+                while GPIO.input(GPIO_ECHO) == 0:
+                    StartTime = time.time()
 
-            return distance
+                # save time of arrival
+                while GPIO.input(GPIO_ECHO) == 1:
+                    StopTime = time.time()
+
+                # time difference between start and arrival
+                TimeElapsed = StopTime - StartTime
+                # multiply with the sonic speed (34300 cm/s)
+                # and divide by 2, because there and back
+                distance = (TimeElapsed * 34300) / 2
+
+        return distance
 
     def parseJSON(self):
         """
@@ -181,7 +193,6 @@ class ZotBins():
     	value: a float or a string "NULL" that represents weight or distance data.
     	"""
     	if value == "NULL":
-    		#wt_ping = wt_ping + 1
     		return 0.0
     	else:
     		assert(type(value)==float)
@@ -234,7 +245,7 @@ class ZotBins():
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
     try:
-        zot.run(distSim=True,weightSim=False) #run the data collection algorithm
+        zot.run(ultCollect=False,weightCollect=False,distSim=True,weightSim=False) #run the data collection algorithm
     #except Exception as e:
     finally:
         print("Exception raised:",e)

@@ -216,6 +216,5 @@ def update_tippers(WEIGHT_SENSOR_ID, WEIGHT_TYPE, ULTRASONIC_SENSOR_ID, ULTRASON
 	conn.execute("DELETE from BINS")
 	conn.commit()
 
-
 if __name__ == "__main__":
 	main()
