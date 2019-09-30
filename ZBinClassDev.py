@@ -101,7 +101,6 @@ class ZotBins():
 
                 #========Measure the Distance==============================
                 distance = self.measure_dist(ultCollect,distSim)
-                raise StandardError("This is a generated exception for testing")
 
                 #=========Extract timestamp=================================
                 #'distance' and 'weight' variable defined in main loop in above lines
