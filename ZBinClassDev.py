@@ -45,7 +45,7 @@ class ZotBins():
             algorithm collects data
         """
         #extract the json info
-        bininfo = self.parseJSON()
+        self.bininfo = self.parseJSON()
 
         #====General GPIO Setup====================
         GPIO.setmode(GPIO.BCM) #for weight sensor
@@ -57,21 +57,13 @@ class ZotBins():
         #=====setup hx711 GPIO pins=================
         self.hx = HX711(HX711IN, HX711OUT)
         self.hx.set_reading_format("LSB", "MSB")
-        self.hx.set_reference_unit(float( bininfo["weightCal"] ))
+        self.hx.set_reference_unit(float( self.bininfo["weightCal"] ))
         self.hx.reset()
         self.hx.tare()
 
-        #========class variables for data collection algorithm=========
-        #generic
-        self.sendData=sendData
-        self.frequencySec=frequencySec
-
-        #error checking variables
-        self.log_setup()
-
         #========Query Information======================================
         #assign variables
-        self.binID = bininfo["binID"]
+        self.binID = self.bininfo["binID"]
         self.weightSensorID = self.binID
         self.weightType = 2
         self.ultrasonicSensorID = self.binID + 'D'
@@ -80,6 +72,17 @@ class ZotBins():
         	"Content-Type": "application/json",
         	"Accept": "application/json"
         }
+
+        #========class variables for data collection algorithm=========
+        #generic
+        self.sendData=sendData
+        self.frequencySec=frequencySec
+
+        #time
+        self.post_time=time.time()
+
+        #========Setup Logging for errors===============================
+        self.log_setup()
 
     def run(self,ultCollect=True,weightCollect=True,tippersPush=True,distSim=False,weightSim=False):
         """
@@ -103,16 +106,17 @@ class ZotBins():
                 distance = self.measure_dist(ultCollect,distSim)
 
                 #=========Extract timestamp=================================
-                #'distance' and 'weight' variable defined in main loop in above lines
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
                 #=========Write to Local===================================
                 self.add_data_to_local(timestamp,weight,distance)
 
-                #=========Write to Tippers=================================
-
                 #========Sleep to Control Frequency of Data Aquisition=====
                 time.sleep(self.frequencySec)
+
+                #=========Write to Tippers=================================
+                self.update_tippers(self,self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
+
             except Exception as e:
                 self.catch(e)
 
@@ -230,28 +234,38 @@ class ZotBins():
 
     def update_tippers(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
     ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO):
-    	conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
-    	cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
-    	d = []
-    	for row in cursor:
-    		timestamp,weight,distance = row
-    		try:
-    			#weight sensor data
-    			if weight != "NULL":
-    				d.append( {"timestamp": timestamp, "payload": {"weight": weight},
-                               "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
-    			#ultrasonic sensor data
-    			if distance != "NULL":
-    				d.append({"timestamp": timestamp,"payload": {"distance": distance},
-                    "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
-    		except Exception as e:
-    			print ("Tippers probably disconnected: ", e)
-    			return
-    	r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
-    	if DISPLAY: print("query status: ", r.status_code, r.text)
-    	#after updating tippers delete from local database
-    	conn.execute("DELETE from BINS")
-    	conn.commit()
+        """
+        This function updates the
+        """
+        if (time.time() - self.post_time > self.frequencySec) and self.sendData:
+        	conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
+        	cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
+        	d = []
+
+            for row in cursor:
+        		timestamp,weight,distance = row
+        		try:
+        			#weight sensor data
+        			if weight != "NULL":
+        				d.append( {"timestamp": timestamp, "payload": {"weight": weight},
+                                   "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
+        			#ultrasonic sensor data
+        			if distance != "NULL":
+        				d.append({"timestamp": timestamp,"payload": {"distance": distance},
+                        "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
+        		except Exception as e:
+        			print ("Tippers probably disconnected: ", e)
+        			return
+
+            r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
+        	if DISPLAY: print("query status: ", r.status_code, r.text)
+        	#after updating tippers delete from local database
+        	conn.execute("DELETE from BINS")
+        	conn.commit()
+
+            self.post_time = time.time()
+        else:
+            pass
 
     def catch(self,e):
         '''
@@ -261,6 +275,9 @@ class ZotBins():
         logging.exception(e)
 
     def log_setup(self):
+        '''
+        Set ups the path of where the error log should be saved and how it should be formatted.
+        '''
         start_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
         #check to see if there is a directory for logging errors
         p = Path('logs')
