@@ -100,7 +100,6 @@ class ZotBins():
             try:
                 #=========Measure the Weight===============================
                 weight = self.measure_weight(weightCollect,weightSim)
-                print("Weight =",weight)
 
                 #========Measure the Distance==============================
                 distance = self.measure_dist(ultCollect,distSim)
