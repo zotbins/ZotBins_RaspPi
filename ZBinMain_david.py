@@ -26,6 +26,123 @@ FLAGS = False # shows preset values for flag tolerances
 upload_time = 0 #flag tracking number of failed attempts to upload to tippers
 connect_time = 0 #flag tracking number of unsuccessful network attempts
 
+
+class zBin:
+        def __init__():
+                return
+        
+        
+#contains all the error flags, tolerances, and settings
+class zState:
+        #tolerances for error detection (weight, pre-ultrasonic sensing, post-ultrasonic
+        #sensing, database connection, online connection)
+        WT_MAX, UT_MAXP, UT_MAXT, TIP_MAX, CT_MAX = 0,0,0,0,0
+        
+        FMAX = 0 #used to restore old tolerances after reset
+        
+        def __init__(file_:'input_file'):
+                set_flags(file_)
+
+        #reads the presets for flag limits for error tolerances
+        def set_flags(file:str):
+            """
+            Sets the tolerance values for the sensors.
+            """
+            try:
+                with open(file) as f:
+                    line = f.readline()
+                    while line != "":
+                        if line.strip() == "***": #skip to presets
+                            WT_MAX = int(f.readline().split(':')[1])
+                            UT_MAXP = int(f.readline().split(':')[1])
+                            UT_MAXT = int(f.readline().split(':')[1])
+                            TIP_MAX = int(f.readline().split(':')[1])
+                            CT_MAX = int(f.readline().split(':')[1])
+                            
+                            '''#ignore comments for demo testing
+                            if FLAGS:
+                                f.readline() 
+                                wt_on = f.readline().split(':')[1]
+                                ut_on = f.readline().split(':')[1]
+                                connected = f.readline().split(':')[1]
+                               ''' 
+                            return UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
+                        line = f.readline() 
+            except FileNotFoundError: 
+                logging.warning(" error_readme.txt not found. Using preset values")
+                WT_MAX = 5
+                UT_MAXP = 1 #sees if ultrasonic sensor is not connected. if echo didn't reset.
+                UT_MAXT = 1 #sees if ultrasonic sensor is not working. if it doesn't receive.
+                TIP_MAX = 5
+                CT_MAX = 10
+                return UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
+            except Exception as e:
+                logging.exception("Expected error_readme.txt file in directory")
+
+        def fail_check(prev_err,flags,MAX,old_MAX,err_log):
+            '''
+            checks each flag to see if they fall within the fault tolerances. It will update each flag with a new threshold until the next failure. There is no max threshold, but the minimum will stay at its preset values. The function will take in the previous err_state and update it if a new failure occurs and send a new notification downloading the current error log (log_file) to email. Returns a err_state (three boolean tuple)
+            '''
+            #save previous err_state to prevent spamming (ie state hasn't changed)
+            prev_ut,prev_wt,prev_ct = prev_err
+            ut_ping,ut_pong,wt_ping,connect_time,upload_time = flags
+            UT_MAXP,UT_MAXT,WT_MAX,CT_MAX,TIP_MAX = MAX
+            
+            if DISPLAY: print(flags)
+            
+            #tolerance checking
+            if ut_ping > UT_MAXP:
+                    logging.warning("ultrasonic sensor failed to restart")
+                    ut_on = False
+                    UT_MAXP = UT_MAXP*2
+            else:
+                ut_on = True
+                UT_MAXP = old_MAX[0]
+            if ut_pong > UT_MAXT:
+                ut_on = False
+                logging.warning("ultrasonic sensor failed to respond")
+                UT_MAXT = UT_MAXT*2
+            else:
+                ut_on = True
+                UT_MAXT = old_MAX[1]
+            if wt_ping > WT_MAX:
+                wt_on = False
+                logging.warning("load sensor failed to respond")
+                WT_MAX = WT_MAX*2
+            else:
+                wt_on = True
+                WT_MAX = old_MAX[2]
+            if connect_time > CT_MAX:
+                connected = False
+                logging.warning("Pi is not connected to the network")
+                CT_MAX = CT_MAX*2
+            else:
+                connected = True
+                CT_MAX = old_MAX[3]
+            if upload_time > TIP_MAX:
+                connected = False
+                logging.warning("Tippers failed to respond")
+                TIP_MAX = TIP_MAX+5
+            else:
+                connected = True
+                TIP_MAX = old_MAX[4]
+           
+            '''
+                if not connected:
+                        try:
+                                check_network = checkLocalConnection('localhost',80)
+                                check_internet = checkServerConnection('tippers',0)
+                        except TimeoutError:
+                                break
+            '''
+            #check to see if errstate and MAX values have changed
+            if prev_err != (ut_on,wt_on,connected):
+                send_notification(err_log)
+                prev_err = ut_on,wt_on,connected
+            MAX =  UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
+            return prev_err,MAX
+                        
+
 def main(SEND_DATA=True, FREQUENCY_SECONDS = 60): #RESET FREQUENCY_SECONDS to 600
 	"""
 	This is the main function that collects data for the
@@ -426,41 +543,7 @@ def send_notification(directory):
     except Exception as e:
         logging.exception(e)
 	
-#reads the presets for flag limits for error tolerances
-def setflags(file:str):
-    """
-    Sets the tolerance values for the sensors.
-    """
-    try:
-        with open(file) as f:
-            line = f.readline()
-            while line != "":
-                if line.strip() == "***": #skip to presets
-                    WT_MAX = int(f.readline().split(':')[1])
-                    UT_MAXP = int(f.readline().split(':')[1])
-                    UT_MAXT = int(f.readline().split(':')[1])
-                    TIP_MAX = int(f.readline().split(':')[1])
-                    CT_MAX = int(f.readline().split(':')[1])
-                    
-                    '''#ignore comments for demo testing
-                    if FLAGS:
-                        f.readline() 
-                        wt_on = f.readline().split(':')[1]
-                        ut_on = f.readline().split(':')[1]
-                        connected = f.readline().split(':')[1]
-                       ''' 
-                    return UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
-                line = f.readline() 
-    except FileNotFoundError: 
-        logging.warning(" error_readme.txt not found. Using preset values")
-        WT_MAX = 5
-        UT_MAXP = 1 #sees if ultrasonic sensor is not connected. if echo didn't reset.
-        UT_MAXT = 1 #sees if ultrasonic sensor is not working. if it doesn't receive.
-        TIP_MAX = 5
-        CT_MAX = 10
-        return UT_MAXP,UT_MAXT, WT_MAX, CT_MAX, TIP_MAX
-    except Exception as e:
-        logging.exception("Expected error_readme.txt file in directory")
+
             
 
 if __name__ == "__main__":
