@@ -241,7 +241,7 @@ class ZotBins():
         	cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
         	d = list()
             for row in cursor:
-        		timestamp,weight,distance = row
+                timestamp,weight,distance = row
         		try:
         			#weight sensor data
         			if weight != "NULL":
