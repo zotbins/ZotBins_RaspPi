@@ -114,7 +114,7 @@ class ZotBins():
                 time.sleep(self.frequencySec)
 
                 #=========Write to Tippers=================================
-                self.update_tippers(self,self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
+                self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
 
             except Exception as e:
                 self.catch(e)
