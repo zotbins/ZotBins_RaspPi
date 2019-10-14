@@ -238,7 +238,7 @@ class ZotBins():
         """
         if ( (time.time() - self.post_time > self.frequencySec) and self.sendData ):
             d = list()
-        	conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
+            conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
         	cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
             for row in cursor:
                 timestamp,weight,distance = row
