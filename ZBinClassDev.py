@@ -26,6 +26,7 @@ from pathlib import Path
 #======other imports=============
 import sys
 import sqlite3
+import ZBinErrorDev
 
 #======GLOBAL VARIABLES==========
 GPIO_TRIGGER = 23 #ultrasonic
@@ -33,6 +34,7 @@ GPIO_ECHO = 24    #ultrasonic
 
 HX711IN = 5		  #weight sensor in
 HX711OUT = 6	  #weight sensor out
+JSONPATH = "/home/pi/ZBinData/binData.json"
 
 
 class ZotBins():
@@ -81,8 +83,9 @@ class ZotBins():
         #time
         self.post_time=time.time()
 
-        #========Setup Logging for errors===============================
-        self.log_setup()
+        #========Setup for errors===============================
+        self.log_setup() #logging
+        self.state = None #sensor data (default set to None, change when add sensorID's later)
 
     def run(self,ultCollect=True,weightCollect=True,tippersPush=True,distSim=False,weightSim=False):
         """
@@ -95,6 +98,8 @@ class ZotBins():
         weightSim<bool>:        Specifies whether to simulate weight data or use the physical weight sensor for data.
                                 If True, it returns the default value: 0.0 (cm)
         """
+        #initialize ZState of bin
+        self.state = ZState(ultCollect,weightCollect,tippersPush)
         #=======MAIN LOOP==========
         while True:
             try:
