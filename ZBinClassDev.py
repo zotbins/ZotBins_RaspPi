@@ -242,18 +242,18 @@ class ZotBins():
             cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
             for row in cursor:
                 timestamp,weight,distance = row
-        		try:
-        			#weight sensor data
-        			if weight != "NULL":
-        				d.append( {"timestamp": timestamp, "payload": {"weight": weight},
+                try:
+                    #weight sensor data
+                    if weight != "NULL":
+                        d.append( {"timestamp": timestamp, "payload": {"weight": weight},
                                    "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
-        			#ultrasonic sensor data
-        			if distance != "NULL":
-        				d.append({"timestamp": timestamp,"payload": {"distance": distance},
+                    #ultrasonic sensor data
+                    if distance != "NULL":
+                        d.append({"timestamp": timestamp,"payload": {"distance": distance},
                         "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
-        		except Exception as e:
-        			print ("Tippers probably disconnected: ", e)
-        			return
+                except Exception as e:
+                    print ("Tippers probably disconnected: ", e)
+                    return
 
             r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
         	if DISPLAY: print("query status: ", r.status_code, r.text)
