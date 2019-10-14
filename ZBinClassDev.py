@@ -256,10 +256,10 @@ class ZotBins():
                     return
 
             r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
-        	if DISPLAY: print("query status: ", r.status_code, r.text)
-        	#after updating tippers delete from local database
-        	conn.execute("DELETE from BINS")
-        	conn.commit()
+            if DISPLAY: print("query status: ", r.status_code, r.text)
+            #after updating tippers delete from local database
+            conn.execute("DELETE from BINS")
+            conn.commit()
 
             self.post_time = time.time()
         else:
