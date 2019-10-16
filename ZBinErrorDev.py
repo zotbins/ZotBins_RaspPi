@@ -69,7 +69,6 @@ class ZState():
         self.sensor_setup(enabled)
 
         self.sensorCount["ultra"], self.sensorCount["weight"], self.sensorCount["tippers"] = 0,0,0
-        print(self.sensorOn,":",self.sensorMax) #remove after debugging purposes
 
 
     def sensor_setup(self,enabled=False):
@@ -90,14 +89,17 @@ class ZState():
             self.sensorMax["tippers"] = MAXTIMEOUT
             #change to dictionary settings later ^^
 
-    def check(self,output=False):
+    def check(self,output=True):
         """
         Checks the ZState to see if the @Count falls within a certain @Max threshold
         If @Count is > @Max, this will update the @ to False and double the @Max threshold
-        as well as log a warning for email notifications
-        output<bool>:   Sends a notification if True
+        as well as log a warning for email notifications.
+        Returns false if nothing went wrong
+        output<bool>:   will report notification if True #not used
+
         """
         iState = self.sensorOn.copy() #saves the previous state to prevent duplicate notifications
+        state_change = False #flags if the state has changed due to a sensor's Count exceeding its Max threshold
         for key,value in self.sensorCount.items():
             if value > self.sensorMax[key]:
                 self.sensorOn[key] = False
@@ -105,8 +107,14 @@ class ZState():
                 print(iState,self.sensorOn)
 
                 #if there is a change in state, report it. Also ignores sensors are default set to false (old version)
-                if iState[key]!=self.sensorOn[key]:
-                    self.report(key,output)
+                if iState[key]!=self.sensorOn[key] and output:
+                    self.report(key)
+                    state_change = True
+        self.print()
+        if state_change:
+            return True
+        else:
+            return False
 
     def increment(self,sensorID:str,amount:int=1):
         """
@@ -130,7 +138,7 @@ class ZState():
             self.sensorMax[sensorID] = MAXTIMEOUT
         return
 
-    def report(self,sensorID:str,notif=False,msg:str=None):
+    def report(self,sensorID:str,msg:str=None):
         """
         Will log and notify changes to the sensor.
         sensorID<str>:  contains the @ character
@@ -147,26 +155,34 @@ class ZState():
         if sensorID in errorlog.keys():
             logging.warning(errorlog[sensorID],msg)
         else:
-            logging.warning("unknown warning occurred: ")
-        if notif and self.checkConnection():
-            self.notify()
+            if msg = None:
+                logging.warning("unknown warning occurred: ")
+            else:
+                logging.warning(msg)
 
     #currently broken
-    def checkConnection(self,timeout=10,link="www.google.com"):
+    def checkConnection(self,time_out=100,link="www.google.com"):
         """
         Default: checks to see if there is a valid connection to the gmail smtp_server.
         Can also check online connection to a site
         timeout<int>:   wait time (mS) trying to connect to the link
         """
-        h = http.client.HTTPConnection("www.gmail.com",timeout)
+        h = http.client.HTTPConnection("www.gmail.com",timeout=time_out)
         try:
             h.request("HEAD","/")
+            response = h.getresponse()
+            return True
         except TimeoutError:
-            self.report("tippers")
+            logging.warning(" Connection timed out.")
+            self.increment("tippers")
+            return False
         except ConnectionError:
-            self.report("tippers")
+            logging.warning(" Connection was denied.")
+            self.increment("tippers")
+            return False
         except Exception as e:
-            self.report("",e)
+            logging.warning("",e)
+            return False
         finally:
             h.close()
 
@@ -211,6 +227,7 @@ class ZState():
         msg["From"] = msg_from
         msg["Subject"] = msg_head
         try:
+            #directory only takes in a file PATH
             with open(directory,"rb") as a:
                 part = MIMEBase("application","octet-stream")
                 part.set_payload(a.read())

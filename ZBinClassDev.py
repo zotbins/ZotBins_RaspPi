@@ -83,7 +83,8 @@ class ZotBins():
         #time
         self.post_time=time.time()
 
-        #========Setup for errors===============================
+        #========Setup for errors===============================.
+        self.log_file = None #name of the log file, path changed in log_setup
         self.log_setup() #logging
         self.state = None #sensor data (default set to None, change when add sensorID's later)
 
@@ -121,6 +122,12 @@ class ZotBins():
                 #=========Write to Tippers=================================
                 self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
 
+                #========Sensor Failure Checking=============
+                failure = self.state.check()
+
+                #========Send a notification============
+                if failure and self.sendData and self.state.checkConnection():
+                    self.state.notify(Path(self.log_file))
             except Exception as e:
                 self.catch(e)
 
@@ -146,7 +153,13 @@ class ZotBins():
                     self.hx.power_up()
                     time.sleep(0.25)
 
-                return sorted(derek)[5]
+                weight_result = sorted(derek)[5]
+                #checking for invalid weight reading (negative weight)
+                if weight_result < -10:
+                    self.state.increment("weight")
+                    return "NULL"
+
+                return weight_result
         return "NULL"
 
     def measure_dist(self,collect=True,simulate=False):
@@ -179,13 +192,29 @@ class ZotBins():
                 StartTime = time.time()
                 StopTime = time.time()
 
+                #break variables for error testing
+                ping = 0
+                ping_max = 500
+                ping_out = False
+
                 # save StartTime
-                while GPIO.input(GPIO_ECHO) == 0:
+                while GPIO.input(GPIO_ECHO) == 0 and ping <= ping_max:
                     StartTime = time.time()
+                    ping += 1
+
+                if ping > ping_max:
+                    ping_out = True #the ultrasonic sensor could not reset itself
+                ping = 0    #reset for actual reading
 
                 # save time of arrival
-                while GPIO.input(GPIO_ECHO) == 1:
+                while GPIO.input(GPIO_ECHO) == 1 and ping <= ping_max:
                     StopTime = time.time()
+                    ping += 1
+
+                #if true, then an error has occurred and will be recorded to ZState
+                if ping > ping_max or ping_out:
+                    self.state.increment("ultra")
+                    return "NULL" #sensor was not able to get a valid reading
 
                 # time difference between start and arrival
                 TimeElapsed = StopTime - StartTime
@@ -239,7 +268,7 @@ class ZotBins():
     def update_tippers(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
     ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO):
         """
-        This function updates the
+        This function updates the tippers database with local data
         """
         if ( (time.time() - self.post_time > self.frequencySec) and self.sendData ):
             d = list()
@@ -257,7 +286,8 @@ class ZotBins():
                         d.append({"timestamp": timestamp,"payload": {"distance": distance},
                         "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
                 except Exception as e:
-                    print ("Tippers probably disconnected: ", e)
+                    self.catch(e,"Tippers probably disconnected.")
+                    self.state.increment("tippers")
                     return
 
             r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
@@ -269,7 +299,7 @@ class ZotBins():
         else:
             pass
 
-    def catch(self,e):
+    def catch(self,e,msg=""):
         '''
         Called when an error is raised during the ZotBins run(). Will capture exception
         into a logging file.
