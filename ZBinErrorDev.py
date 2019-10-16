@@ -50,7 +50,6 @@ class ZState():
         W<int>:  the max number of failed attempts before load sensor is deemed "not working"
         T<int>:  the max number of failed attempts before connection is lost
     """
-    sensorOn,sensorCount,sensorMax = {},{},{} #initialize the 3 dict from above
 
     #sensorID = {}      replace once sensorID's is added to ZBinClassDev
     def __init__(self,ultCollect,weightCollect,tippersPush,enabled=True,notif=True):
@@ -60,6 +59,7 @@ class ZState():
         enabled<bool>: default max values will be read from .json file if True
         notif<bool>:  email notifications will be sent if True
         """
+        self.sensorOn,self.sensorCount,self.sensorMax = {},{},{} #initialize the 3 dict from above
 
         self.sensorOn["ultra"] = ultCollect
         self.sensorOn["weight"] = weightCollect
@@ -104,7 +104,6 @@ class ZState():
             if value > self.sensorMax[key]:
                 self.sensorOn[key] = False
                 self.sensorMax[key] *= 2
-                print(iState,self.sensorOn)
 
                 #if there is a change in state, report it. Also ignores sensors are default set to false (old version)
                 if iState[key]!=self.sensorOn[key] and output:
@@ -155,7 +154,7 @@ class ZState():
         if sensorID in errorlog.keys():
             logging.warning(errorlog[sensorID],msg)
         else:
-            if msg = None:
+            if msg == None:
                 logging.warning("unknown warning occurred: ")
             else:
                 logging.warning(msg)

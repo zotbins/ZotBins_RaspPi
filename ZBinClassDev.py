@@ -100,7 +100,7 @@ class ZotBins():
                                 If True, it returns the default value: 0.0 (cm)
         """
         #initialize ZState of bin
-        self.state = ZState(ultCollect,weightCollect,tippersPush)
+        self.state = ZBinErrorDev.ZState(ultCollect,weightCollect,tippersPush)
         #=======MAIN LOOP==========
         while True:
             try:
