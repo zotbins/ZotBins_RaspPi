@@ -34,7 +34,8 @@ GPIO_ECHO = 24    #ultrasonic
 
 HX711IN = 5		  #weight sensor in
 HX711OUT = 6	  #weight sensor out
-JSONPATH = "/home/pi/ZBinData/binData.json"
+JSONPATH = "/home/pi/ZBinData/binData.json" #testing "../binData.json"
+DBPATH = "/home/pi/ZBinData/zotbin.db"  #testing "../database/zotbin.db"
 
 
 class ZotBins():
@@ -229,7 +230,7 @@ class ZotBins():
         This function parses the json file in the absolute path
         of '/home/pi/ZBinData/binData.json' and returns a dictionary
         """
-        with open("/home/pi/ZBinData/binData.json") as bindata:
+        with open(JSONPATH) as bindata:
         	bininfo = eval( bindata.read() )["bin"][0]
         return bininfo
 
@@ -254,7 +255,7 @@ class ZotBins():
     	weight<float>: float that represents weight in grams
     	distance<float>: float that represents distance in cm
     	"""
-    	conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
+    	conn = sqlite3.connect(DBPATH)
     	conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
     		"TIMESTAMP"	TEXT NOT NULL,
     		"WEIGHT"	REAL,
@@ -272,7 +273,7 @@ class ZotBins():
         """
         if ( (time.time() - self.post_time > self.frequencySec) and self.sendData ):
             d = list()
-            conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
+            conn = sqlite3.connect(DBPATH)
             cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
             for row in cursor:
                 timestamp,weight,distance = row
