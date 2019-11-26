@@ -327,7 +327,7 @@ class ZotBins():
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
     try:
-        zot.run(ultCollect=True,weightCollect=True,distSim=True,weightSim=True) #run the data collection algorithm
+        zot.run(ultCollect=True,weightCollect=True,distSim=False,weightSim=False) #run the data collection algorithm
     finally:
         GPIO.cleanup()
         sys.exit()
