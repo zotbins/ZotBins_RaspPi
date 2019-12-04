@@ -40,7 +40,8 @@ GPIO_ECHO = 24    #ultrasonic
 
 HX711IN = 5		  #weight sensor in
 HX711OUT = 6	  #weight sensor out
-JSONPATH = "/home/pi/ZBinData/binData.json"
+JSONPATH = "/home/pi/ZBinData/binData.json" #testing "../binData.json"
+DBPATH = "/home/pi/ZBinData/zotbin.db"  #testing "../database/zotbin.db"
 
 class Dummy():
     def __init__(self):
@@ -246,12 +247,9 @@ class ZotBins():
         This function parses the json file in the absolute path
         of '/home/pi/ZBinData/binData.json' and returns a dictionary
         """
-        try:
-            with open("/home/pi/ZBinData/binData.json") as bindata:
-            	bininfo = eval( bindata.read() )["bin"][0]
-            return bininfo
-        except:
-            return "compost"
+        with open(JSONPATH) as bindata:
+        	bininfo = eval( bindata.read() )["bin"][0]
+        return bininfo
 
     def null_check_convert(self,value):
     	"""
@@ -295,30 +293,33 @@ class ZotBins():
             return
         if ( (time.time() - self.post_time > self.frequencySec) and self.sendData ):
             d = list()
-            conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
+            conn = sqlite3.connect(DBPATH)
             cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
             for row in cursor:
                 timestamp,weight,distance = row
-                try:
-                    #weight sensor data
-                    if weight != "NULL":
-                        d.append( {"timestamp": timestamp, "payload": {"weight": weight},
-                                   "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
-                    #ultrasonic sensor data
-                    if distance != "NULL":
-                        d.append({"timestamp": timestamp,"payload": {"distance": distance},
-                        "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
-                except Exception as e:
-                    self.catch(e,"Tippers probably disconnected.")
-                    self.state.increment("tippers")
-                    return
+                #weight sensor data
+                if weight != "NULL":
+                    d.append( {"timestamp": timestamp, "payload": {"weight": weight},
+                               "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
+                #ultrasonic sensor data
+                if distance != "NULL":
+                    d.append({"timestamp": timestamp,"payload": {"distance": distance},
+                    "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
 
-            r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
-            #after updating tippers delete from local database
-            conn.execute("DELETE from BINS")
-            conn.commit()
-
-            self.post_time = time.time()
+            #for the request, we should try wrapping it in a try catch block
+            #what are we trying to capture in the for loop? It looks like we're just appending
+            #   data to be sent
+            #How should we handle the null case? Server acceptable?
+            try:
+                r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
+                #after updating tippers delete from local database
+                conn.execute("DELETE from BINS")
+                conn.commit()
+                self.post_time = time.time()
+            except Exception as e:
+                self.catch(e,"Tippers probably disconnected.")
+                self.state.increment("tippers")
+                return
         else:
             pass
 
@@ -346,7 +347,7 @@ class ZotBins():
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
     try:
-        zot.run(ultCollect=True,weightCollect=True,distSim=True,weightSim=True) #run the data collection algorithm
+        zot.run(ultCollect=True,weightCollect=True,distSim=False,weightSim=False) #run the data collection algorithm
     finally:
         GPIO.cleanup()
         sys.exit()
