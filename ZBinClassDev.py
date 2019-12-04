@@ -39,7 +39,7 @@ DBPATH = "/home/pi/ZBinData/zotbin.db"  #testing "../database/zotbin.db"
 
 
 class ZotBins():
-    def __init__(self,sendData=True,frequencySec=600):
+    def __init__(self,sendData=True,frequencySec=900,frequencySleep=300):
         """
         sendData<Bool>: determines whether or not the algortihm should
             send data to the tippers database or
@@ -80,6 +80,7 @@ class ZotBins():
         #generic
         self.sendData=sendData
         self.frequencySec=frequencySec
+        self.sleepTime=frequencySleep
 
         #time
         self.post_time=time.time()
@@ -118,7 +119,7 @@ class ZotBins():
                 self.add_data_to_local(timestamp,weight,distance)
 
                 #========Sleep to Control Frequency of Data Aquisition=====
-                time.sleep(self.frequencySec)
+                time.sleep(self.sleepTime)
 
                 #=========Write to Tippers=================================
                 self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
