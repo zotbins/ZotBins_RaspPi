@@ -45,9 +45,9 @@ DBPATH = "/home/pi/ZBinData/zotbin.db"  #testing "../database/zotbin.db"
 
 class Dummy():
     def __init__(self):
-        print("Dummy class created")
+        print("[Dummy Class] Dummy obj created")
     def do_something(self):
-        print("doing something")
+        print("[Dummy Class] doing something")
 
 class ZotBins():
     def __init__(self,sendData=True,frequencySec=600, simulate=False):
