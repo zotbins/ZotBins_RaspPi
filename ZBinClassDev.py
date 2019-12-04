@@ -12,7 +12,11 @@ import time
 import datetime
 
 #====GPIO related imports====
-import RPi.GPIO as GPIO
+try:
+    import RPi.GPIO as GPIO
+except:
+    import RPi_DUMMY.GPIO as GPIO
+#import RPi_DUMMY.GPIO as GPIO
 from hx711 import HX711
 
 #=====API imports===============
@@ -28,6 +32,8 @@ import sys
 import sqlite3
 import ZBinErrorDev
 
+from PyQt5.QtCore import QThread
+
 #======GLOBAL VARIABLES==========
 GPIO_TRIGGER = 23 #ultrasonic
 GPIO_ECHO = 24    #ultrasonic
@@ -36,9 +42,14 @@ HX711IN = 5		  #weight sensor in
 HX711OUT = 6	  #weight sensor out
 JSONPATH = "/home/pi/ZBinData/binData.json"
 
+class Dummy():
+    def __init__(self):
+        print("Dummy class created")
+    def do_something(self):
+        print("doing something")
 
 class ZotBins():
-    def __init__(self,sendData=True,frequencySec=600):
+    def __init__(self,sendData=True,frequencySec=600, simulate=False):
         """
         sendData<Bool>: determines whether or not the algortihm should
             send data to the tippers database or
@@ -87,6 +98,12 @@ class ZotBins():
         self.log_file = None #name of the log file, path changed in log_setup
         self.log_setup() #logging
         self.state = None #sensor data (default set to None, change when add sensorID's later)
+
+        self.simulate = simulate
+        self.db_path = "/home/pi/ZBinData/zotbin.db"
+        if self.simulate:
+            self.db_path = "../ZBinData/zotbin2.db"
+
 
     def run(self,ultCollect=True,weightCollect=True,tippersPush=True,distSim=False,weightSim=False):
         """
@@ -229,9 +246,12 @@ class ZotBins():
         This function parses the json file in the absolute path
         of '/home/pi/ZBinData/binData.json' and returns a dictionary
         """
-        with open("/home/pi/ZBinData/binData.json") as bindata:
-        	bininfo = eval( bindata.read() )["bin"][0]
-        return bininfo
+        try:
+            with open("/home/pi/ZBinData/binData.json") as bindata:
+            	bininfo = eval( bindata.read() )["bin"][0]
+            return bininfo
+        except:
+            return "compost"
 
     def null_check_convert(self,value):
     	"""
@@ -254,7 +274,7 @@ class ZotBins():
     	weight<float>: float that represents weight in grams
     	distance<float>: float that represents distance in cm
     	"""
-    	conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
+    	conn = sqlite3.connect(self.db_path)
     	conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
     		"TIMESTAMP"	TEXT NOT NULL,
     		"WEIGHT"	REAL,
@@ -270,6 +290,9 @@ class ZotBins():
         """
         This function updates the tippers database with local data
         """
+        if self.simulate:
+            print("[ZotBinThread] update_tippers called")
+            return
         if ( (time.time() - self.post_time > self.frequencySec) and self.sendData ):
             d = list()
             conn = sqlite3.connect("/home/pi/ZBinData/zotbin.db")
