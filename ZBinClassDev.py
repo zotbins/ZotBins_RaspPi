@@ -5,7 +5,6 @@ Notes:
 Resources:
 - Some of the code here was used from other projects/tutorials
 - ultrasonic resource: https://tutorials-raspberrypi.com/raspberry-pi-ultrasonic-sensor-hc-sr04/
-- load ceel resources:
 """
 #====timestamps imports=========
 import time
@@ -138,8 +137,8 @@ class ZotBins():
         This function measures the weight, if collect is True. It measures the weights 11 times,
         sorts it, and returns the median.
 
-        collect<bool>
-        simulate<bool>
+        collect<bool>: If True, it will communicate with the hx711 chip to collect weight data.
+        simulate<bool>: If True, it will just return 0.0
         """
         if collect:
             if simulate:
