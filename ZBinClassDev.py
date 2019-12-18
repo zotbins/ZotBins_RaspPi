@@ -88,7 +88,7 @@ class ZotBins():
         #========Setup for errors===============================.
         self.log_file = None #name of the log file, path changed in log_setup
         #self.log_setup() #logging
-        #self.state = None #sensor data (default set to None, change when add sensorID's later)
+        self.state = None #sensor data (default set to None, change when add sensorID's later)
 
     def run(self,ultCollect=True,weightCollect=True,tippersPush=True,distSim=False,weightSim=False):
         """
@@ -103,7 +103,7 @@ class ZotBins():
         """
         #initialize ZState of bin
         print("Setting up state")
-        #self.state = ZBinErrorDev.ZState(ultCollect,weightCollect,tippersPush)
+        self.state = ZBinErrorDev.ZState(ultCollect,weightCollect,tippersPush)
         print("Entering the main Loop")
         #=======MAIN LOOP==========
         while True:
@@ -164,7 +164,7 @@ class ZotBins():
                 weight_result = sorted(derek)[5]
                 #checking for invalid weight reading (negative weight)
                 if weight_result < -10:
-                    #self.state.increment("weight")
+                    self.state.increment("weight")
                     return "NULL"
 
                 return weight_result
@@ -221,7 +221,7 @@ class ZotBins():
 
                 #if true, then an error has occurred and will be recorded to ZState
                 if ping > ping_max or ping_out:
-                    #self.state.increment("ultra")
+                    self.state.increment("ultra")
                     return "NULL" #sensor was not able to get a valid reading
 
                 # time difference between start and arrival
@@ -305,7 +305,7 @@ class ZotBins():
                 self.post_time = time.time()
             except Exception as e:
                 self.catch(e,"Tippers probably disconnected.")
-                #self.state.increment("tippers")
+                self.state.increment("tippers")
                 return
         else:
             pass
