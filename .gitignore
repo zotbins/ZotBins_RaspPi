@@ -6,4 +6,4 @@ david_weight_test.py
 __pycache__/
 *.pyc
 *.json
-
+*.csv
