@@ -88,7 +88,7 @@ class ZotBins():
         #========Setup for errors===============================.
         self.log_file = None #name of the log file, path changed in log_setup
         #self.log_setup() #logging
-        self.state = None #sensor data (default set to None, change when add sensorID's later)
+        #self.state = None #sensor data (default set to None, change when add sensorID's later)
 
     def run(self,ultCollect=True,weightCollect=True,tippersPush=True,distSim=False,weightSim=False):
         """
@@ -103,7 +103,7 @@ class ZotBins():
         """
         #initialize ZState of bin
         print("Setting up state")
-        self.state = ZBinErrorDev.ZState(ultCollect,weightCollect,tippersPush)
+        #self.state = ZBinErrorDev.ZState(ultCollect,weightCollect,tippersPush)
         print("Entering the main Loop")
         #=======MAIN LOOP==========
         while True:
@@ -131,10 +131,10 @@ class ZotBins():
                 self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
 
                 #========Sensor Failure Checking=============
-                failure = self.state.check()
+                #failure = self.state.check()
 
                 #========Send a notification============
-                if failure and self.sendData and self.state.checkConnection():
+                if failure and self.sendData: #and self.state.checkConnection():
                     self.state.notify(Path(self.log_file))
             except Exception as e:
                 print(e) #self.catch(e)
@@ -164,7 +164,7 @@ class ZotBins():
                 weight_result = sorted(derek)[5]
                 #checking for invalid weight reading (negative weight)
                 if weight_result < -10:
-                    self.state.increment("weight")
+                    #self.state.increment("weight")
                     return "NULL"
 
                 return weight_result
@@ -221,7 +221,7 @@ class ZotBins():
 
                 #if true, then an error has occurred and will be recorded to ZState
                 if ping > ping_max or ping_out:
-                    self.state.increment("ultra")
+                    #self.state.increment("ultra")
                     return "NULL" #sensor was not able to get a valid reading
 
                 # time difference between start and arrival
@@ -242,36 +242,36 @@ class ZotBins():
         return bininfo
 
     def null_check_convert(self,value):
-    	"""
+        """
         [CURRENTLY UNUSED FUNCTION]
-    	This function checks whether or not the given value is
-    	the string "NULL" and converts it to a float if necessary.
-    	value: a float or a string "NULL" that represents weight or distance data.
-    	"""
-    	if value == "NULL":
-    		return 0.0
-    	else:
-    		assert(type(value)==float)
-    		return value
+        This function checks whether or not the given value is
+        the string "NULL" and converts it to a float if necessary.
+        value: a float or a string "NULL" that represents weight or distance data.
+        """
+        if value == "NULL":
+            return 0.0
+        else:
+            assert(type(value)==float)
+            return value
 
     def add_data_to_local(self,timestamp, weight, distance):
-    	"""
-    	This function adds timestamp, weight, and distance data
-    	to the SQLite data base located in "/home/pi/ZBinData/zotbin.db"
-    	timestamp<str>: in the format '%Y-%m-%d %H:%M:%S'
-    	weight<float>: float that represents weight in grams
-    	distance<float>: float that represents distance in cm
-    	"""
-    	conn = sqlite3.connect(DBPATH)
-    	conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
-    		"TIMESTAMP"	TEXT NOT NULL,
-    		"WEIGHT"	REAL,
-    		"DISTANCE"	REAL
-    	);
-    	''')
-    	conn.execute("INSERT INTO BINS (TIMESTAMP,WEIGHT,DISTANCE)\nVALUES ('{}',{},{})".format(timestamp,weight,distance))
-    	conn.commit()
-    	conn.close()
+        """
+        This function adds timestamp, weight, and distance data
+        to the SQLite data base located in "/home/pi/ZBinData/zotbin.db"
+        timestamp<str>: in the format '%Y-%m-%d %H:%M:%S'
+        weight<float>: float that represents weight in grams
+        distance<float>: float that represents distance in cm
+        """
+        conn = sqlite3.connect(DBPATH)
+        conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
+            "TIMESTAMP" TEXT NOT NULL,
+            "WEIGHT"    REAL,
+            "DISTANCE"  REAL
+        );
+        ''')
+        conn.execute("INSERT INTO BINS (TIMESTAMP,WEIGHT,DISTANCE)\nVALUES ('{}',{},{})".format(timestamp,weight,distance))
+        conn.commit()
+        conn.close()
 
     def update_tippers(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
     ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO):
@@ -305,7 +305,7 @@ class ZotBins():
                 self.post_time = time.time()
             except Exception as e:
                 self.catch(e,"Tippers probably disconnected.")
-                self.state.increment("tippers")
+                #self.state.increment("tippers")
                 return
         else:
             pass
