@@ -46,6 +46,7 @@ class ZotBins():
         frequencySec<int>: determines the sampling rate of which the
             algorithm collects data
         """
+        print("hello")
         #extract the json info
         self.bininfo = self.parseJSON()
 
@@ -86,7 +87,7 @@ class ZotBins():
 
         #========Setup for errors===============================.
         self.log_file = None #name of the log file, path changed in log_setup
-        self.log_setup() #logging
+        #self.log_setup() #logging
         self.state = None #sensor data (default set to None, change when add sensorID's later)
 
     def run(self,ultCollect=True,weightCollect=True,tippersPush=True,distSim=False,weightSim=False):
@@ -101,21 +102,27 @@ class ZotBins():
                                 If True, it returns the default value: 0.0 (cm)
         """
         #initialize ZState of bin
+        print("Setting up state")
         self.state = ZBinErrorDev.ZState(ultCollect,weightCollect,tippersPush)
+        print("Entering the main Loop")
         #=======MAIN LOOP==========
         while True:
             try:
+                print("Starting Weight Measurement")
                 #=========Measure the Weight===============================
                 weight = self.measure_weight(weightCollect,weightSim)
+                print("weight is good")
 
                 #========Measure the Distance==============================
                 distance = self.measure_dist(ultCollect,distSim)
+                print("distance is good")
 
                 #=========Extract timestamp=================================
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
                 #=========Write to Local===================================
                 self.add_data_to_local(timestamp,weight,distance)
+                print("data adding is good")
 
                 #========Sleep to Control Frequency of Data Aquisition=====
                 time.sleep(self.sleepTime)
@@ -130,7 +137,7 @@ class ZotBins():
                 if failure and self.sendData and self.state.checkConnection():
                     self.state.notify(Path(self.log_file))
             except Exception as e:
-                self.catch(e)
+                print(e) #self.catch(e)
 
     def measure_weight(self,collect=True,simulate=False):
         """
@@ -327,7 +334,8 @@ class ZotBins():
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
     try:
-        zot.run(ultCollect=True,weightCollect=True,distSim=False,weightSim=False) #run the data collection algorithm
+        print("starting zotbins run")
+        zot.run(ultCollect=True,weightCollect=True,distSim=True,weightSim=True) #run the data collection algorithm
     finally:
         GPIO.cleanup()
         sys.exit()
