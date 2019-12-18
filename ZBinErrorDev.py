@@ -25,7 +25,7 @@ from socket import *
 
 #=====file imports=====
 from pathlib import Path
-JSONPATH = "../binData.json" #testing "/home/pi/ZBinData/binData.json"
+JSONPATH = "/home/pi/ZBinData/binData.json"
 
 MAXTIMEOUT = 5    #default value for sensor timeout
 
