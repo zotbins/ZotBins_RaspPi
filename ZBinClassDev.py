@@ -49,6 +49,9 @@ class ZotBins():
         #extract the json info
         self.bininfo = self.parseJSON()
 
+        #===
+        self.collectWeight, self.collectDistance = self.bininfo["collectWeight"], self.bininfo["collectDistance"]
+
         #====General GPIO Setup====================
         GPIO.setmode(GPIO.BCM) #for weight sensor
 
@@ -326,8 +329,9 @@ class ZotBins():
 
 if __name__ == "__main__":
     zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
-    try:
-        zot.run(ultCollect=True,weightCollect=True,distSim=False,weightSim=False) #run the data collection algorithm
-    finally:
-        GPIO.cleanup()
-        sys.exit()
+    print(zot.collectDistance, zot.collectWeight)
+    # try:
+    #     zot.run(ultCollect=zot.collectDistance,weightCollect=zot.collectWeight,distSim=False,weightSim=False) #run the data collection algorithm
+    # finally:
+    #     GPIO.cleanup()
+    #     sys.exit()
