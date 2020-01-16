@@ -173,9 +173,9 @@ class ZotBins():
 
                 weight_result = sorted(derek)[5]
                 #checking for invalid weight reading (negative weight)
-                if weight_result < -10:
-                    self.state.increment("weight")
-                    return "NULL"
+                # if weight_result < -10:
+                #     self.state.increment("weight")
+                #     return "NULL"
 
                 return weight_result
         return "NULL"
