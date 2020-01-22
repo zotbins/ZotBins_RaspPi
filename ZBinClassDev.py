@@ -11,12 +11,19 @@ import time
 import datetime
 
 #====GPIO related imports====
-import RPi.GPIO as GPIO
-from hx711 import HX711
+isPiDevice = None #check to see if testing on Pi device
+try:
+    import RPi.GPIO as GPIO
+    isPiDevice = True
+    from hx711 import HX711
+except Exception as e:
+    isPiDevice = False
+
+
 
 #=====API imports===============
 import json
-import requests
+#import requests
 
 #=====logging import===========
 import logging
@@ -33,8 +40,13 @@ GPIO_ECHO = 24    #ultrasonic
 
 HX711IN = 5		  #weight sensor in
 HX711OUT = 6	  #weight sensor out
-JSONPATH = "/home/pi/ZBinData/binData.json" #testing "../binData.json"
-DBPATH = "/home/pi/ZBinData/zotbin.db"  #testing "../database/zotbin.db"
+
+if isPiDevice:
+    JSONPATH = "/home/pi/ZBinData/binData.json"
+    DBPATH = "/home/pi/ZBinData/zotbin.db"
+else:  #testing
+    JSONPATH = "../binData.json"
+    DBPATH = "../database/zotbin.db"
 
 
 class ZotBins():
