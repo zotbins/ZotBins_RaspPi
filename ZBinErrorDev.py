@@ -187,7 +187,7 @@ class ZState():
 
 
 
-    def notify(message:str=None,r=None,directory:Path=None):
+    def notify(message:str=None,directory:Path=None, r=None):
         """
         sends an email notification to the specified recipient
 
@@ -197,7 +197,7 @@ class ZState():
             report
             update
         message<str>:   a message that will be sent with the email
-        file<Path>:     specify a directory/file that will be sent
+        file<Path>:     specify a file that will be sent. Usually the log file
         r<str>:         specifies the recipient of the email
         """
         with open(JSONPATH) as emaildata:
@@ -225,17 +225,17 @@ class ZState():
         msg["To"] = msg_to
         msg["From"] = msg_from
         msg["Subject"] = msg_head
+
+        msg_text = message
         try:
             #directory only takes in a file PATH
             with open(directory,"rb") as a:
-                part = MIMEBase("application","octet-stream")
-                part.set_payload(a.read())
-            encoders.encode_base64(part)
-            msg.attach(part)
+                currline = a.readline()
+                msg_text += currline
         except:
-            msg.attach(MIMEText("Error notifcation","plain"))
-
-        msg_text = msg.as_string()
+            if msg_text == None: #include a default message if not present
+                msg_text += "Error notification"
+        msg.attach(MIMEText(msg_text,"plain"))
 
         try:
             with smtplib.SMTP_SSL(smtp_server,port,context=context) as server:
