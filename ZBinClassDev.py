@@ -14,10 +14,11 @@ import datetime
 isPiDevice = None #check to see if testing on Pi device
 try:
     import RPi.GPIO as GPIO
-    isPiDevice = True
     from hx711 import HX711
+    isPiDevice = True
 except Exception as e:
     isPiDevice = False
+    #add dummy RPi modules to run tests
 
 
 
@@ -44,9 +45,10 @@ HX711OUT = 6	  #weight sensor out
 if isPiDevice:
     JSONPATH = "/home/pi/ZBinData/binData.json"
     DBPATH = "/home/pi/ZBinData/zotbin.db"
-else:  #testing
-    JSONPATH = "../binData.json"
+else:  #directories for testing
+    JSONPATH =  "../binData2.json" #"../binData.json"
     DBPATH = "../database/zotbin.db"
+    ERRPATH = "../errData.json"#"/home/pi/ZBinData/errData.json"
 
 
 class ZotBins():
@@ -116,7 +118,9 @@ class ZotBins():
                                 If True, it returns the default value: 0.0 (cm)
         """
         #initialize ZState of bin
-        self.state = ZBinErrorDev.ZState(ultCollect,weightCollect,tippersPush)
+        with open(JSONPATH) as maindata:
+            print("sensorID's: ",maindata["bin"][1].keys())
+            self.state = ZBinErrorDev.ZState(maindata["bin"][1].keys())
         #=======MAIN LOOP==========
         while True:
             try:
