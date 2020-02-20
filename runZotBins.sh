@@ -1,2 +1,3 @@
+#!/bin/bash
 cd /home/pi/ZotBins_RaspPi
-python3 ZBinMain.py 
+python3 ZBinClassDev.py

@@ -24,7 +24,7 @@ except Exception as e:
 
 #=====API imports===============
 import json
-#import requests
+import requests
 
 #=====logging import===========
 import logging
