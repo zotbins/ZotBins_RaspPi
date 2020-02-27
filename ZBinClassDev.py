@@ -279,6 +279,7 @@ class ZotBins():
         failure<str/list>: hold list of error messages, or is default null
     	"""
     	conn = sqlite3.connect(DBPATH)
+
     	conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
     		"TIMESTAMP"	TEXT NOT NULL,
     		"WEIGHT"	REAL,
@@ -287,25 +288,28 @@ class ZotBins():
     	);
     	''')
         #if the table already exists, modify it to have the correct size
-        conn.execute('''ALTER TABLE "BINS" IF NOT EXISTS "BINS.MESSAGES"
+    	conn.execute('''ALTER TABLE "BINS" IF NOT EXISTS "BINS.MESSAGES"
         ADD "MESSAGES" TEXT;
         ''')
 
         #creates a new error table to hold a list of error messages, the main table will contain the name of the error table
-        err_table = "NULL"
-        if failure != "NULL":
+    	err_table = "NULL"
+
+    	if failure != "NULL":
             err_table = "ERROR{}".format(timestamp) #name of the error table generated
             conn.execute('''CREATE TABLE IF NOT EXISTS "{}" (
-        		"TIMESTAMP"	INT NOT NULL,
+                        "TIMESTAMP"	INT NOT NULL,
                 "MESSAGES"  TEXT
-        	);
-        	'''.format(err_table))
+                );
+                '''.format(err_table))
             for i in range(len(failure)):
-                conn.execute("INSERT INTO {} (TIMESTAMP,MESSAGES)\nVALUES ('{}','{}')".format(err_table,i,message))
+                conn.execute("INSERT INTO {}(TIMESTAMP,MESSAGES)\nVALUES ('{}','{}')".format(err_table,i,message))
 
-    	conn.execute("INSERT INTO BINS (TIMESTAMP,WEIGHT,DISTANCE,MESSAGES)\nVALUES ('{}',{},{},'{}')".format(timestamp,weight,distance,err_table))
+        conn.execute("INSERT INTO BINS(TIMESTAMP,WEIGHT,DISTANCE,MESSAGES)\nVALUES('{}',{},{},'{}')".format(timestamp,weight,distance,err_table))
     	conn.commit()
     	conn.close()
+
+
 
     def update_tippers(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
     ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO):
