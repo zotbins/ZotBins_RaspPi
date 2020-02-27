@@ -91,21 +91,22 @@ class ZState():
 
         """
         iState = self.sensorOn.copy() #saves the previous state to prevent duplicate notifications
-        state_change = False #flags if the state has changed due to a sensor's Count exceeding its Max threshold
+        state_change = False #flags if the state has faulted due to a sensor's fail Count exceeding its Max threshold
+        states = [] #stores the error messages of the faulted sensors
         for key,value in self.sensorCount.items():
             if value > self.sensorMax[key]:
                 self.sensorOn[key] = False
                 self.sensorMax[key] *= 2
 
-                #if there is a change in state, report it. Also ignores sensors are default set to false (old version)
+                #if there is a change in state, report it.
                 if iState[key]!=self.sensorOn[key] and output:
-                    self.report(key)
+                    states.append[self.report(key)]
                     state_change = True
-        #self.print()
+
         if state_change:
-            return True
+            return states
         else:
-            return False
+            return "NULL"
 
     def increment(self,sensorID:str,amount:int=1):
         """
@@ -131,25 +132,27 @@ class ZState():
 
     def report(self,sensorID:str,lvl:int=0):
         """
-        Will log and notify changes to the sensor.
+        Will log and notify changes to the sensor. Returns the error message as str
         sensorID<str>:  contains the @ character
         notif<bool>:  will send an email notification if True (Recommended for sensor failures)
         """
         errorlog = {}
+        msg = ""
         with open(ERRPATH) as logdata:
             errorlog = eval( logdata.read() )["messages"][0]
 
         if sensorID in errorlog.keys():
-            logging.warning(errorlog[sensorID][lvl])
+            msg = errorlog[sensorID][lvl]
         else:
-            logging.warning(errorlog["default"][lvl].format(sensorID))
+            msg = errorlog["default"][lvl].format(sensorID)
+        logging.warning(msg)
+        return msg
 
-    #currently broken
     def checkConnection(self,time_out=100,link="www.google.com"):
         """
         Default: checks to see if there is a valid connection to the gmail smtp_server.
         Can also check online connection to a site
-        timeout<int>:   wait time (mS) trying to connect to the link
+        timeout<int>:  wait time (mS) trying to connect to the link
         """
         h = http.client.HTTPConnection("www.gmail.com",timeout=time_out)
         try:
@@ -220,7 +223,7 @@ class ZState():
         except:
             if msg_text == None: #include a default message if not present
                 msg_text += "See Bin for more details"
-        msg.attach(MIMEText("Pi Error Notification,"plain"))
+        msg.attach(MIMEText("Pi Error Notification","plain"))
 
         try:
             with smtplib.SMTP_SSL(smtp_server,port,context=context) as server:

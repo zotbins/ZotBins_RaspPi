@@ -123,7 +123,7 @@ class ZotBins():
         with open(JSONPATH) as maindata:
             print("sensorID's: ",maindata["bin"][1].keys())
             self.state = ZBinErrorDev.ZState(maindata["bin"][1].keys())
-        failure = "NULL"
+        failure = "NULL" #contains error messages, default no errors
         #=======MAIN LOOP==========
         while True:
             try:
@@ -137,7 +137,7 @@ class ZotBins():
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
                 #=========Write to Local===================================
-                self.add_data_to_local(timestamp,weight,distance)
+                self.add_data_to_local(timestamp,weight,distance,failure)
 
                 #========Sleep to Control Frequency of Data Aquisition=====
                 time.sleep(self.sleepRate)
@@ -149,7 +149,7 @@ class ZotBins():
                 failure = self.state.check()
 
                 #========Send a notification============
-                if failure and self.sendData and self.state.checkConnection():
+                if failure != "NULL" and self.sendData and self.state.checkConnection():
                     self.state.notify(Path(self.log_file))
             except Exception as e:
                 self.catch(e)
@@ -269,24 +269,41 @@ class ZotBins():
     		assert(type(value)==float)
     		return value
 
-    def add_data_to_local(self,timestamp, weight, distance):
+    def add_data_to_local(self,timestamp, weight, distance, failure="NULL"):
     	"""
     	This function adds timestamp, weight, and distance data
     	to the SQLite data base located in "/home/pi/ZBinData/zotbin.db"
     	timestamp<str>: in the format '%Y-%m-%d %H:%M:%S'
     	weight<float>: float that represents weight in grams
     	distance<float>: float that represents distance in cm
+        failure<str/list>: hold list of error messages, or is default null
     	"""
     	conn = sqlite3.connect(DBPATH)
     	conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
     		"TIMESTAMP"	TEXT NOT NULL,
     		"WEIGHT"	REAL,
     		"DISTANCE"	REAL,
-            ""
+            "MESSAGES"  TEXT
     	);
     	''')
-        conn
-    	conn.execute("INSERT INTO BINS (TIMESTAMP,WEIGHT,DISTANCE)\nVALUES ('{}',{},{},{})".format(timestamp,weight,distance))
+        #if the table already exists, modify it to have the correct size
+        conn.execute('''ALTER TABLE "BINS" IF NOT EXISTS "BINS.MESSAGES"
+        ADD "MESSAGES" TEXT;
+        ''')
+
+        #creates a new error table to hold a list of error messages, the main table will contain the name of the error table
+        err_table = "NULL"
+        if failure != "NULL":
+            err_table = "ERROR{}".format(timestamp) #name of the error table generated
+            conn.execute('''CREATE TABLE IF NOT EXISTS "{}" (
+        		"TIMESTAMP"	INT NOT NULL,
+                "MESSAGES"  TEXT
+        	);
+        	'''.format(err_table))
+            for i in range(len(failure)):
+                conn.execute("INSERT INTO {} (TIMESTAMP,MESSAGES)\nVALUES ('{}','{}')".format(err_table,i,message))
+
+    	conn.execute("INSERT INTO BINS (TIMESTAMP,WEIGHT,DISTANCE,MESSAGES)\nVALUES ('{}',{},{},'{}')".format(timestamp,weight,distance,err_table))
     	conn.commit()
     	conn.close()
 
