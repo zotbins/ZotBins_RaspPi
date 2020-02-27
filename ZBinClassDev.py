@@ -42,6 +42,8 @@ GPIO_ECHO = 24    #ultrasonic
 HX711IN = 5		  #weight sensor in
 HX711OUT = 6	  #weight sensor out
 
+UPLOAD_RATE = 3   #number of times collecting data before uploading to server
+
 if isPiDevice:
     JSONPATH = "/home/pi/ZBinData/binData.json"
     DBPATH = "/home/pi/ZBinData/zotbin.db"
@@ -52,7 +54,7 @@ else:  #directories for testing
 
 
 class ZotBins():
-    def __init__(self,sendData=True,frequencySec=900,frequencySleep=300):
+    def __init__(self,sendData=True,frequencySec=300):
         """
         sendData<Bool>: determines whether or not the algortihm should
             send data to the tippers database or
@@ -95,8 +97,8 @@ class ZotBins():
         #========class variables for data collection algorithm=========
         #generic
         self.sendData=sendData
-        self.frequencySec=frequencySec
-        self.sleepTime=frequencySleep
+        self.sleepRate=frequencySec
+        self.uploadRate = frequencySec * UPLOAD_RATE
 
         #time
         self.post_time=time.time()
@@ -121,6 +123,7 @@ class ZotBins():
         with open(JSONPATH) as maindata:
             print("sensorID's: ",maindata["bin"][1].keys())
             self.state = ZBinErrorDev.ZState(maindata["bin"][1].keys())
+        failure = "NULL"
         #=======MAIN LOOP==========
         while True:
             try:
@@ -137,7 +140,7 @@ class ZotBins():
                 self.add_data_to_local(timestamp,weight,distance)
 
                 #========Sleep to Control Frequency of Data Aquisition=====
-                time.sleep(self.sleepTime)
+                time.sleep(self.sleepRate)
 
                 #=========Write to Tippers=================================
                 self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
@@ -278,10 +281,12 @@ class ZotBins():
     	conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
     		"TIMESTAMP"	TEXT NOT NULL,
     		"WEIGHT"	REAL,
-    		"DISTANCE"	REAL
+    		"DISTANCE"	REAL,
+            ""
     	);
     	''')
-    	conn.execute("INSERT INTO BINS (TIMESTAMP,WEIGHT,DISTANCE)\nVALUES ('{}',{},{})".format(timestamp,weight,distance))
+        conn
+    	conn.execute("INSERT INTO BINS (TIMESTAMP,WEIGHT,DISTANCE)\nVALUES ('{}',{},{},{})".format(timestamp,weight,distance))
     	conn.commit()
     	conn.close()
 
@@ -290,7 +295,7 @@ class ZotBins():
         """
         This function updates the tippers database with local data
         """
-        if ( (time.time() - self.post_time > self.frequencySec) and self.sendData ):
+        if ( (time.time() - self.post_time > self.uploadRate) and self.sendData ):
             d = list()
             conn = sqlite3.connect(DBPATH)
             cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
@@ -322,6 +327,45 @@ class ZotBins():
         else:
             pass
 
+    '''***temporary remove after TIPPERS update'''
+    def update_grace(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
+    ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO):
+        """
+        This function updates the tippers database with local data
+        """
+        if ( (time.time() - self.post_time > self.uploadRate) and self.sendData ):
+            d = list()
+            conn = sqlite3.connect(DBPATH)
+            cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
+            for row in cursor:
+                timestamp,weight,distance = row
+                #weight sensor data
+                if weight != "NULL":
+                    d.append( {"timestamp": timestamp, "payload": {"weight": weight},
+                               "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
+                #ultrasonic sensor data
+                if distance != "NULL":
+                    d.append({"timestamp": timestamp,"payload": {"distance": distance},
+                    "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
+
+            #for the request, we should try wrapping it in a try catch block
+            #what are we trying to capture in the for loop? It looks like we're just appending
+            #   data to be sent
+            #How should we handle the null case? Server acceptable?
+            try:
+                r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
+                #after updating tippers delete from local database
+                conn.execute("DELETE from BINS")
+                conn.commit()
+                self.post_time = time.time()
+            except Exception as e:
+                self.catch(e,"Tippers probably disconnected.")
+                self.state.increment("tippers")
+                return
+        else:
+            pass
+
+
     def catch(self,e,msg=""):
         '''
         Called when an error is raised during the ZotBins run(). Will capture exception
@@ -344,7 +388,7 @@ class ZotBins():
 
 
 if __name__ == "__main__":
-    zot = ZotBins(sendData=True,frequencySec=10) #initialize the ZotBins object
+    zot = ZotBins(sendData=True) #initialize the ZotBins object
     try:
         zot.run(ultCollect=zot.collectDistance,weightCollect=zot.collectWeight,distSim=False,weightSim=False) #run the data collection algorithm
     finally:
