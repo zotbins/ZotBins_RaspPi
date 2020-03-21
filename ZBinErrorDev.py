@@ -6,7 +6,7 @@ Notes:
 Resources:
 - Some of the code here was used from other projects/tutorials
 - ultrasonic resource: https://tutorials-raspberrypi.com/raspberry-pi-ultrasonic-sensor-hc-sr04/
-- load ceel resources:
+- load cell resources:
 """
 #=====logging import===========
 import logging
@@ -25,7 +25,8 @@ from socket import *
 
 #=====file imports=====
 from pathlib import Path
-JSONPATH = "../binData.json" #testing "/home/pi/ZBinData/binData.json"
+JSONPATH = "../binData2.json"#"/home/pi/ZBinData/binData.json"
+ERRPATH = "../errData.json"#"/home/pi/ZBinData/errData.json"
 
 MAXTIMEOUT = 5    #default value for sensor timeout
 
@@ -52,7 +53,7 @@ class ZState():
     """
 
     #sensorID = {}      replace once sensorID's is added to ZBinClassDev
-    def __init__(self,ultCollect,weightCollect,tippersPush,enabled=True,notif=True):
+    def __init__(self,sensors:list=[],enabled=True,notif=True):
         """
         pass in values for the current ZotBin sensor configuration. A set of tolerance
         values are chosen from a separate file.
@@ -60,15 +61,8 @@ class ZState():
         notif<bool>:  email notifications will be sent if True
         """
         self.sensorOn,self.sensorCount,self.sensorMax = {},{},{} #initialize the 3 dict from above
-
-        self.sensorOn["ultra"] = ultCollect
-        self.sensorOn["weight"] = weightCollect
-        self.sensorOn["tippers"] = tippersPush
-
-        self.sensorMax["ultra"],self.sensorMax["weight"],self.sensorMax["tippers"] = 0,0,0
+        self.sensorID = sensors
         self.sensor_setup(enabled)
-
-        self.sensorCount["ultra"], self.sensorCount["weight"], self.sensorCount["tippers"] = 0,0,0
 
 
     def sensor_setup(self,enabled=False):
@@ -80,13 +74,11 @@ class ZState():
         if enabled:
             with open(JSONPATH) as bindata:
                 stateinfo = eval( bindata.read() )["bin"][1]
-            self.sensorMax["ultra"] = stateinfo["ultra"]
-            self.sensorMax["weight"] = stateinfo["weight"]
-            self.sensorMax["tippers"] = stateinfo["tippers"]
+            for id in self.sensorID:
+                self.sensorMax[id] = stateinfo[id]
         else:
-            self.sensorMax["ultra"] = MAXTIMEOUT
-            self.sensorMax["weight"] = MAXTIMEOUT
-            self.sensorMax["tippers"] = MAXTIMEOUT
+            for id in self.sensorID:
+                self.sensorMax[id] = MAXTIMEOUT
             #change to dictionary settings later ^^
 
     def check(self,output=True):
@@ -99,21 +91,22 @@ class ZState():
 
         """
         iState = self.sensorOn.copy() #saves the previous state to prevent duplicate notifications
-        state_change = False #flags if the state has changed due to a sensor's Count exceeding its Max threshold
+        state_change = False #flags if the state has faulted due to a sensor's fail Count exceeding its Max threshold
+        states = [] #stores the error messages of the faulted sensors
         for key,value in self.sensorCount.items():
             if value > self.sensorMax[key]:
                 self.sensorOn[key] = False
                 self.sensorMax[key] *= 2
 
-                #if there is a change in state, report it. Also ignores sensors are default set to false (old version)
+                #if there is a change in state, report it.
                 if iState[key]!=self.sensorOn[key] and output:
-                    self.report(key)
+                    states.append[self.report(key)]
                     state_change = True
-        self.print()
+
         if state_change:
-            return True
+            return states
         else:
-            return False
+            return "NULL"
 
     def increment(self,sensorID:str,amount:int=1):
         """
@@ -137,34 +130,29 @@ class ZState():
             self.sensorMax[sensorID] = MAXTIMEOUT
         return
 
-    def report(self,sensorID:str,msg:str=None):
+    def report(self,sensorID:str,lvl:int=0):
         """
-        Will log and notify changes to the sensor.
+        Will log and notify changes to the sensor. Returns the error message as str
         sensorID<str>:  contains the @ character
         notif<bool>:  will send an email notification if True (Recommended for sensor failures)
         """
         errorlog = {}
-        errorlog["ultra"] = " Ultrasonic sensor failed to restart."
-        errorlog["weight"] = " Load sensor failed to callibrate."
-        errorlog["tippers"] = " Pi could not connect to network."
-        '''***FUTURE: ERROR NOTES WILL MOVE TO error.JSON, replace above with:
-            with open("/home/pi/ZBinData/error.json") as logdata:
-                errorlog = eval( logdata.read() )["sensor"]
-        '''
-        if sensorID in errorlog.keys():
-            logging.warning(errorlog[sensorID],msg)
-        else:
-            if msg == None:
-                logging.warning("unknown warning occurred: ")
-            else:
-                logging.warning(msg)
+        msg = ""
+        with open(ERRPATH) as logdata:
+            errorlog = eval( logdata.read() )["messages"][0]
 
-    #currently broken
+        if sensorID in errorlog.keys():
+            msg = errorlog[sensorID][lvl]
+        else:
+            msg = errorlog["default"][lvl].format(sensorID)
+        logging.warning(msg)
+        return msg
+
     def checkConnection(self,time_out=100,link="www.google.com"):
         """
         Default: checks to see if there is a valid connection to the gmail smtp_server.
         Can also check online connection to a site
-        timeout<int>:   wait time (mS) trying to connect to the link
+        timeout<int>:  wait time (mS) trying to connect to the link
         """
         h = http.client.HTTPConnection("www.gmail.com",timeout=time_out)
         try:
@@ -187,7 +175,7 @@ class ZState():
 
 
 
-    def notify(message:str=None,r=None,directory:Path=None):
+    def notify(message:str=None,directory:Path=None, r=None):
         """
         sends an email notification to the specified recipient
 
@@ -197,7 +185,7 @@ class ZState():
             report
             update
         message<str>:   a message that will be sent with the email
-        file<Path>:     specify a directory/file that will be sent
+        file<Path>:     specify a file that will be sent. Usually the log file
         r<str>:         specifies the recipient of the email
         """
         with open(JSONPATH) as emaildata:
@@ -225,17 +213,17 @@ class ZState():
         msg["To"] = msg_to
         msg["From"] = msg_from
         msg["Subject"] = msg_head
+
+        msg_text = message
         try:
             #directory only takes in a file PATH
             with open(directory,"rb") as a:
-                part = MIMEBase("application","octet-stream")
-                part.set_payload(a.read())
-            encoders.encode_base64(part)
-            msg.attach(part)
+                currline = a.readline()
+                msg_text += currline
         except:
-            msg.attach(MIMEText("Error notifcation","plain"))
-
-        msg_text = msg.as_string()
+            if msg_text == None: #include a default message if not present
+                msg_text += "See Bin for more details"
+        msg.attach(MIMEText("Pi Error Notification","plain"))
 
         try:
             with smtplib.SMTP_SSL(smtp_server,port,context=context) as server:
@@ -252,35 +240,4 @@ class ZState():
             print(self.sensorOn[sensor],self.sensorCount[sensor],self.sensorMax[sensor],sep=";",end='\n')
 
 '''FUTURE CODE USE
-def __init__(self,sensors:{},enabled=True,notif=True):
-    """
-    pass in values for the current ZotBin sensor configuration. A set of tolerance
-    values are chosen from a separate file.
-    enabled<bool>: default max values will be read from .json file if True
-    notif<bool>:  email notifications will be sent if True
-    """
-    self.sensorOn,self.sensorCount,self.sensorMax = {},{},{} #initialize the 3 dict from above
-    self.sensorID = sensors
-
-    for sensor in sensorID:
-        self.sensorOn[sensor] = True
-        self.sensorMax[sensor] = 0
-        self.sensorCount[sensor] = 0
-        self.sensor_setup(enabled)
-
-def sensor_setup(self,enabled=False):
-    """
-    sets up the ZState's error tolerances from an external file. If enabled
-    is False or the file is not found then a list of default values are chosen
-    **(currently configured for weight and ultrasonic sensor only!!!)
-    """
-    if enabled:
-        with open(JSONPATH) as bindata:
-            stateinfo = eval( bindata.read() )["bin"][1]
-        for id in self.sensorID:
-            self.sensorMax[id] = stateinfo[id]
-    else:
-        for id in self.sensorID:
-            self.sensorMax[id] = MAXTIMEOUT
-        #change to dictionary settings later ^^
 '''
