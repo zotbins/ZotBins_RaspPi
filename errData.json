@@ -1,0 +1,36 @@
+{
+   "data":[
+      {
+         "binID":"ZBin4",
+         "tippersurl":"https://gschoe.pythonanywhere.com/observation/add",
+         "collectError":True,
+		 "errorID": 1
+      }
+   ],
+   "messages":[
+      {
+         "default": ["Sensor failure, {} faulty"],
+		 "ultra":
+		 [
+			"Ultrasonic sensor faulty",
+			" failed to restart",
+			" could not receive feedback"
+		 ],
+         "weight":
+		 [
+			"Load sensor faulty",
+			" failed to restart",
+			" gave illegal readings"
+		 ],
+         "tippers":
+		 [
+			"Online connection failed",
+			" Pi could not connect online",
+			" server refused to connect"
+		 ]
+      },
+	  {
+		"maintain": []
+	  }
+	]
+}
