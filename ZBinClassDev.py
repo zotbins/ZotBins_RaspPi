@@ -274,7 +274,7 @@ class ZotBins():
                         "TIMESTAMP" INT NOT NULL,
                         "MESSAGES"  TEXT
                         );''')
-            conn.execute('INSERT INTO ERRORS (TIMESTAMP,MESSAGES) \nVALUES ("{}","{}")''.format(timestamp,failure))
+            conn.execute('INSERT INTO ERRORS (TIMESTAMP,MESSAGES) \nVALUES ("{}","{}")'.format(timestamp,failure))
 
         conn.execute("INSERT INTO BINS(TIMESTAMP,WEIGHT,DISTANCE,MESSAGES)\nVALUES('{}',{},{},'{}')".format(timestamp,weight,distance,err_table))
         conn.commit()
