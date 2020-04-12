@@ -119,19 +119,22 @@ class ZotBins():
                                 If True, it returns the default value: 0.0 (cm)
         """
         #initialize ZState of bin
+        #print(JSONPATH+"\t"+DBPATH)
         with open(JSONPATH) as maindata:
-            print("sensorID's: ",maindata["bin"][1].keys())
-            self.state = ZBinErrorDev.ZState(maindata["bin"][1].keys())
+            sensorIDs = eval(maindata.read())["bin"]
+            #print("sensorID's: ",sensorIDs[1].keys())
+            self.state = ZBinErrorDev.ZState(sensorIDs[1].keys())
+        #print("new State")
         failure = "NULL" #contains error messages, default no errors
         #=======MAIN LOOP==========
         while True:
             try:
                 #=========Measure the Weight===============================
                 weight = self.measure_weight(weightCollect,weightSim)
-
+                #print("measure weight: "+str(weight))
                 #========Measure the Distance==============================
                 distance = self.measure_dist(ultCollect,distSim)
-
+                #print("measure dist: "+str(distance))
                 #=========Extract timestamp=================================
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -140,13 +143,13 @@ class ZotBins():
 
                 #========Sleep to Control Frequency of Data Aquisition=====
                 time.sleep(self.sleepRate)
-
+                #print("slept")
                 #=========Write to Tippers=================================
                 self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
-
+                #print("upload")
                 #========Sensor Failure Checking=============
                 failure = self.state.check()
-
+                
                 #========Send a notification============
                 if failure != "NULL" and self.sendData and self.state.checkConnection():
                     self.state.notify(Path(self.log_file))
@@ -157,7 +160,6 @@ class ZotBins():
         """
         This function measures the weight, if collect is True. It measures the weights 11 times,
         sorts it, and returns the median.
-
         collect<bool>: If True, it will communicate with the hx711 chip to collect weight data.
         simulate<bool>: If True, it will just return 0.0
         """
@@ -191,11 +193,9 @@ class ZotBins():
         ECHO - should be connected to pin 24
         Vcc  - should be connected to 5V pin
         GND  - should be connected to a GND pin (straight-foward)
-
         If there is no ultrasonic sensor connected. You may use set the
         parameter 'simulate' to True in order to generate a value to return
         without using the ultrasonic sensor
-
         collect<bool>
         simulate<bool>
         """
@@ -400,6 +400,7 @@ class ZotBins():
 
 if __name__ == "__main__":
     zot = ZotBins(sendData=True) #initialize the ZotBins object
+    #print("Initializing")
     try:
         zot.run(ultCollect=zot.collectDistance,weightCollect=zot.collectWeight,distSim=False,weightSim=False) #run the data collection algorithm
     finally:
