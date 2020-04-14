@@ -9,6 +9,8 @@ Resources:
 #====timestamps imports=========
 import time
 import datetime
+import signal
+from contextlib import contextmanager
 
 #====GPIO related imports====
 isPiDevice = None #check to see if testing on Pi device
@@ -19,8 +21,6 @@ try:
 except Exception as e:
     isPiDevice = False
     #add dummy RPi modules to run tests
-
-
 
 #=====API imports===============
 import json
@@ -43,6 +43,7 @@ HX711IN = 5		  #weight sensor in
 HX711OUT = 6	  #weight sensor out
 
 UPLOAD_RATE = 3   #number of times collecting data before uploading to server
+ERRPATH = "errData.json"
 
 if isPiDevice:
     JSONPATH = "/home/pi/ZBinData/binData.json"
@@ -50,8 +51,6 @@ if isPiDevice:
 else:  #directories for testing
     JSONPATH =  "../binData2.json" #"../binData.json"
     DBPATH = "../database/zotbin.db"
-    ERRPATH = "../errData.json"#"/home/pi/ZBinData/errData.json"
-
 
 class ZotBins():
     def __init__(self,sendData=True,frequencySec=300):
@@ -120,19 +119,22 @@ class ZotBins():
                                 If True, it returns the default value: 0.0 (cm)
         """
         #initialize ZState of bin
+        #print(JSONPATH+"\t"+DBPATH)
         with open(JSONPATH) as maindata:
-            print("sensorID's: ",maindata["bin"][1].keys())
-            self.state = ZBinErrorDev.ZState(maindata["bin"][1].keys())
+            sensorIDs = eval(maindata.read())["bin"]
+            #print("sensorID's: ",sensorIDs[1].keys())
+            self.state = ZBinErrorDev.ZState(sensorIDs[1].keys())
+        #print("new State")
         failure = "NULL" #contains error messages, default no errors
         #=======MAIN LOOP==========
         while True:
             try:
                 #=========Measure the Weight===============================
                 weight = self.measure_weight(weightCollect,weightSim)
-
+                #print("measure weight: "+str(weight))
                 #========Measure the Distance==============================
                 distance = self.measure_dist(ultCollect,distSim)
-
+                #print("measure dist: "+str(distance))
                 #=========Extract timestamp=================================
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -141,13 +143,13 @@ class ZotBins():
 
                 #========Sleep to Control Frequency of Data Aquisition=====
                 time.sleep(self.sleepRate)
-
+                #print("slept")
                 #=========Write to Tippers=================================
                 self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
-
+                #print("upload")
                 #========Sensor Failure Checking=============
                 failure = self.state.check()
-
+                
                 #========Send a notification============
                 if failure != "NULL" and self.sendData and self.state.checkConnection():
                     self.state.notify(Path(self.log_file))
@@ -158,7 +160,6 @@ class ZotBins():
         """
         This function measures the weight, if collect is True. It measures the weights 11 times,
         sorts it, and returns the median.
-
         collect<bool>: If True, it will communicate with the hx711 chip to collect weight data.
         simulate<bool>: If True, it will just return 0.0
         """
@@ -192,60 +193,38 @@ class ZotBins():
         ECHO - should be connected to pin 24
         Vcc  - should be connected to 5V pin
         GND  - should be connected to a GND pin (straight-foward)
-
         If there is no ultrasonic sensor connected. You may use set the
         parameter 'simulate' to True in order to generate a value to return
         without using the ultrasonic sensor
-
         collect<bool>
         simulate<bool>
         """
-        distance = "NULL"
         if collect:
             if simulate:
                 return 60.0
             else:
-                # set Trigger to HIGH
+                #set the Trigger to HIGH
                 GPIO.output(GPIO_TRIGGER, True)
 
-                # set Trigger after 0.01ms to LOW
+                #set the Trigger after 0.01 ms to LOW
                 time.sleep(0.00001)
                 GPIO.output(GPIO_TRIGGER, False)
 
                 StartTime = time.time()
                 StopTime = time.time()
 
-                #break variables for error testing
-                ping = 0
-                ping_max = 500
-                ping_out = False
+                try:
+                    with self.time_limit(5):
+                        while GPIO.input(GPIO_ECHO) == 0:
+                            StartTime = time.time()
+                        while GPIO.input(GPIO_ECHO) == 1:
+                            StopTime = time.time()
+                except Timeout:
+                    return "NULL" #we know it failed
 
-                # save StartTime
-                while GPIO.input(GPIO_ECHO) == 0 and ping <= ping_max:
-                    StartTime = time.time()
-                    ping += 1
-
-                if ping > ping_max:
-                    ping_out = True #the ultrasonic sensor could not reset itself
-                ping = 0    #reset for actual reading
-
-                # save time of arrival
-                while GPIO.input(GPIO_ECHO) == 1 and ping <= ping_max:
-                    StopTime = time.time()
-                    ping += 1
-
-                #if true, then an error has occurred and will be recorded to ZState
-                if ping > ping_max or ping_out:
-                    self.state.increment("ultra")
-                    return "NULL" #sensor was not able to get a valid reading
-
-                # time difference between start and arrival
                 TimeElapsed = StopTime - StartTime
-                # multiply with the sonic speed (34300 cm/s)
-                # and divide by 2, because there and back
-                distance = (TimeElapsed * 34300) / 2
-
-        return distance
+                distance = (TimeElapsed*34300)/2
+                return distance
 
     def parseJSON(self):
         """
@@ -257,59 +236,49 @@ class ZotBins():
         return bininfo
 
     def null_check_convert(self,value):
-    	"""
+        """
         [CURRENTLY UNUSED FUNCTION]
-    	This function checks whether or not the given value is
-    	the string "NULL" and converts it to a float if necessary.
-    	value: a float or a string "NULL" that represents weight or distance data.
-    	"""
-    	if value == "NULL":
-    		return 0.0
-    	else:
-    		assert(type(value)==float)
-    		return value
+        This function checks whether or not the given value is
+        the string "NULL" and converts it to a float if necessary.
+        value: a float or a string "NULL" that represents weight or distance data.
+        """
+        if value == "NULL":
+        	return 0.0
+        else:
+        	assert(type(value)==float)
+        	return value
 
     def add_data_to_local(self,timestamp, weight, distance, failure="NULL"):
-    	"""
-    	This function adds timestamp, weight, and distance data
-    	to the SQLite data base located in "/home/pi/ZBinData/zotbin.db"
-    	timestamp<str>: in the format '%Y-%m-%d %H:%M:%S'
-    	weight<float>: float that represents weight in grams
-    	distance<float>: float that represents distance in cm
-        failure<str/list>: hold list of error messages, or is default null
-    	"""
-    	conn = sqlite3.connect(DBPATH)
+        """
+        This function adds timestamp, weight, and distance data
+        to the SQLite data base located in "/home/pi/ZBinData/zotbin.db"
+        timestamp<str>: in the format '%Y-%m-%d %H:%M:%S'
+        weight<float>: float that represents weight in grams
+        distance<float>: float that represents distance in cm
+        failure<str>: hold list of error messages, or is default null
+        """
+        conn = sqlite3.connect(DBPATH)
 
-    	conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
-    		"TIMESTAMP"	TEXT NOT NULL,
-    		"WEIGHT"	REAL,
-    		"DISTANCE"	REAL,
-            "MESSAGES"  TEXT
-    	);
-    	''')
-        #if the table already exists, modify it to have the correct size
-    	conn.execute('''ALTER TABLE "BINS" IF NOT EXISTS "BINS.MESSAGES"
-        ADD "MESSAGES" TEXT;
+        conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
+            "TIMESTAMP"	TEXT NOT NULL,
+            "WEIGHT"	REAL,
+            "DISTANCE"	REAL
+        );
         ''')
 
         #creates a new error table to hold a list of error messages, the main table will contain the name of the error table
-    	err_table = "NULL"
+        err_table = "NULL"
 
-    	if failure != "NULL":
-            err_table = "ERROR{}".format(timestamp) #name of the error table generated
-            conn.execute('''CREATE TABLE IF NOT EXISTS "{}" (
-                        "TIMESTAMP"	INT NOT NULL,
-                "MESSAGES"  TEXT
-                );
-                '''.format(err_table))
-            for i in range(len(failure)):
-                conn.execute("INSERT INTO {}(TIMESTAMP,MESSAGES)\nVALUES ('{}','{}')".format(err_table,i,message))
+        if failure != "NULL":
+            conn.execute('''CREATE TABLE IF NOT EXISTS "ERRORS" (
+                        "TIMESTAMP" INT NOT NULL,
+                        "MESSAGES"  TEXT
+                        );''')
+            conn.execute('INSERT INTO ERRORS (TIMESTAMP,MESSAGES) \nVALUES ("{}","{}")'.format(timestamp,failure))
 
         conn.execute("INSERT INTO BINS(TIMESTAMP,WEIGHT,DISTANCE,MESSAGES)\nVALUES('{}',{},{},'{}')".format(timestamp,weight,distance,err_table))
-    	conn.commit()
-    	conn.close()
-
-
+        conn.commit()
+        conn.close()
 
     def update_tippers(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
     ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO):
@@ -386,6 +355,27 @@ class ZotBins():
         else:
             pass
 
+    @contextmanager
+    def time_limit(self,seconds):
+        """
+        This is for the timed signal to limit the amount of time it takes for
+        a function to run.
+        """
+        def signal_handler(signum, frame):
+            raise TimeoutException("Timed out!")
+        signal.signal(signal.SIGALRM, self._handler)
+        signal.alarm(seconds)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+
+    def _handler(self,sig,frame):
+        """
+        This is for the timed signal to limit the amount of time it takes for
+        a function to run.
+        """
+        raise Timeout
 
     def catch(self,e,msg=""):
         '''
@@ -410,6 +400,7 @@ class ZotBins():
 
 if __name__ == "__main__":
     zot = ZotBins(sendData=True) #initialize the ZotBins object
+    #print("Initializing")
     try:
         zot.run(ultCollect=zot.collectDistance,weightCollect=zot.collectWeight,distSim=False,weightSim=False) #run the data collection algorithm
     finally:
