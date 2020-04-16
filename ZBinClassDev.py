@@ -34,16 +34,16 @@ from pathlib import Path
 import sys
 import sqlite3
 import ZBinErrorDev
+import serial
 
 #======GLOBAL VARIABLES==========
 GPIO_TRIGGER = 23 #ultrasonic
 GPIO_ECHO = 24    #ultrasonic
-
-HX711IN = 5		  #weight sensor in
-HX711OUT = 6	  #weight sensor out
-
+HX711IN = 5       #weight sensor in
+HX711OUT = 6      #weight sensor out
 UPLOAD_RATE = 3   #number of times collecting data before uploading to server
 ERRPATH = "errData.json"
+SER = serial.Serial('/dev/ttyACM0',9600)
 
 if isPiDevice:
     JSONPATH = "/home/pi/ZBinData/binData.json"
@@ -89,8 +89,8 @@ class ZotBins():
         self.ultrasonicSensorID = self.binID + 'D'
         self.ultrasonicType = 3
         self.headers = {
-        	"Content-Type": "application/json",
-        	"Accept": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
 
         #========class variables for data collection algorithm=========
@@ -131,10 +131,10 @@ class ZotBins():
             try:
                 #=========Measure the Weight===============================
                 weight = self.measure_weight(weightCollect,weightSim)
-                #print("measure weight: "+str(weight))
+
                 #========Measure the Distance==============================
                 distance = self.measure_dist(ultCollect,distSim)
-                #print("measure dist: "+str(distance))
+
                 #=========Extract timestamp=================================
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -143,13 +143,13 @@ class ZotBins():
 
                 #========Sleep to Control Frequency of Data Aquisition=====
                 time.sleep(self.sleepRate)
-                #print("slept")
+
                 #=========Write to Tippers=================================
                 self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
-                #print("upload")
+
                 #========Sensor Failure Checking=============
                 failure = self.state.check()
-                
+
                 #========Send a notification============
                 if failure != "NULL" and self.sendData and self.state.checkConnection():
                     self.state.notify(Path(self.log_file))
@@ -167,24 +167,13 @@ class ZotBins():
             if simulate:
                 return 0.0
             else:
-                #array to collect the weight measurements
-                derek = []
-
-                #collect a list of weight measurements
-                for i in range(11):
-                    derek.append(self.hx.get_weight(5))
-                    self.hx.power_down()
-                    self.hx.power_up()
-                    time.sleep(0.25)
-
-                weight_result = sorted(derek)[5]
-                #checking for invalid weight reading (negative weight)
-                if weight_result < -10:
-                    self.state.increment("weight")
-                    return "NULL"
-
-                return weight_result
-        return "NULL"
+                try:
+                    with self.time_limit(5):
+                        read_serial = str(ser.readline(),'utf-8')
+                except serial.serialutil.SerialException:
+                    return "NULL" #we know it failed
+                except Timeout:
+                    return "NULL" #we know it failed
 
     def measure_dist(self,collect=True,simulate=False):
         """
@@ -396,7 +385,6 @@ class ZotBins():
         #generate a log file with name with start of run
         self.log_file = "logs/zbinlog_{}.csv".format(start_time)
         logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='"%(asctime)s","%(message)s"')
-
 
 if __name__ == "__main__":
     zot = ZotBins(sendData=True) #initialize the ZotBins object
