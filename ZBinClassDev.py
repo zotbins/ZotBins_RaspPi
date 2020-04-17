@@ -63,8 +63,6 @@ class ZotBins():
         """
         #extract the json info
         self.bininfo = self.parseJSON()
-
-        #===
         self.collectWeight, self.collectDistance = self.bininfo["collectWeight"], self.bininfo["collectDistance"]
 
         #====General GPIO Setup====================
@@ -118,23 +116,26 @@ class ZotBins():
         weightSim<bool>:        Specifies whether to simulate weight data or use the physical weight sensor for data.
                                 If True, it returns the default value: 0.0 (cm)
         """
+        print("Starting run() function")
         #initialize ZState of bin
-        #print(JSONPATH+"\t"+DBPATH)
         with open(JSONPATH) as maindata:
+            print("Opening JSONPATH:",JSONPATH)
             sensorIDs = eval(maindata.read())["bin"]
-            #print("sensorID's: ",sensorIDs[1].keys())
+            print(sensorIDs)
+            print(sensorIDs[1].keys())
             self.state = ZBinErrorDev.ZState(sensorIDs[1].keys())
-        #print("new State")
+        print("Entering Main Loop")
         failure = "NULL" #contains error messages, default no errors
         #=======MAIN LOOP==========
         while True:
+            print("Main Loop")
             try:
                 #=========Measure the Weight===============================
                 weight = self.measure_weight(weightCollect,weightSim)
-                #print("measure weight: "+str(weight))
+
                 #========Measure the Distance==============================
                 distance = self.measure_dist(ultCollect,distSim)
-                #print("measure dist: "+str(distance))
+
                 #=========Extract timestamp=================================
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -143,13 +144,13 @@ class ZotBins():
 
                 #========Sleep to Control Frequency of Data Aquisition=====
                 time.sleep(self.sleepRate)
-                #print("slept")
+
                 #=========Write to Tippers=================================
                 self.update_tippers(self.weightSensorID,self.weightType,self.ultrasonicSensorID, self.ultrasonicType, self.headers, self.bininfo)
-                #print("upload")
+
                 #========Sensor Failure Checking=============
                 failure = self.state.check()
-                
+
                 #========Send a notification============
                 if failure != "NULL" and self.sendData and self.state.checkConnection():
                     self.state.notify(Path(self.log_file))
@@ -259,22 +260,11 @@ class ZotBins():
         """
         conn = sqlite3.connect(DBPATH)
 
-        conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
-            "TIMESTAMP"	TEXT NOT NULL,
-            "WEIGHT"	REAL,
-            "DISTANCE"	REAL
-        );
-        ''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS BINS ("TIMESTAMP" TEXT NOT NULL, "WEIGHT" REAL, "DISTANCE" REAL,"MESSAGES"  TEXT);''')
+        conn.commit()
 
         #creates a new error table to hold a list of error messages, the main table will contain the name of the error table
-        err_table = "NULL"
-
-        if failure != "NULL":
-            conn.execute('''CREATE TABLE IF NOT EXISTS "ERRORS" (
-                        "TIMESTAMP" INT NOT NULL,
-                        "MESSAGES"  TEXT
-                        );''')
-            conn.execute('INSERT INTO ERRORS (TIMESTAMP,MESSAGES) \nVALUES ("{}","{}")'.format(timestamp,failure))
+        err_table = failure
 
         conn.execute("INSERT INTO BINS(TIMESTAMP,WEIGHT,DISTANCE,MESSAGES)\nVALUES('{}',{},{},'{}')".format(timestamp,weight,distance,err_table))
         conn.commit()
@@ -310,44 +300,7 @@ class ZotBins():
                 conn.execute("DELETE from BINS")
                 conn.commit()
                 self.post_time = time.time()
-            except Exception as e:
-                self.catch(e,"Tippers probably disconnected.")
-                self.state.increment("tippers")
-                return
-        else:
-            pass
-
-    '''***temporary remove after TIPPERS update'''
-    def update_grace(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
-    ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO):
-        """
-        This function updates the tippers database with local data
-        """
-        if ( (time.time() - self.post_time > self.uploadRate) and self.sendData ):
-            d = list()
-            conn = sqlite3.connect(DBPATH)
-            cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
-            for row in cursor:
-                timestamp,weight,distance = row
-                #weight sensor data
-                if weight != "NULL":
-                    d.append( {"timestamp": timestamp, "payload": {"weight": weight},
-                               "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
-                #ultrasonic sensor data
-                if distance != "NULL":
-                    d.append({"timestamp": timestamp,"payload": {"distance": distance},
-                    "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
-
-            #for the request, we should try wrapping it in a try catch block
-            #what are we trying to capture in the for loop? It looks like we're just appending
-            #   data to be sent
-            #How should we handle the null case? Server acceptable?
-            try:
-                r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
-                #after updating tippers delete from local database
-                conn.execute("DELETE from BINS")
-                conn.commit()
-                self.post_time = time.time()
+                self.state.reset()
             except Exception as e:
                 self.catch(e,"Tippers probably disconnected.")
                 self.state.increment("tippers")
