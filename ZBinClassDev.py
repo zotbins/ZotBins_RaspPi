@@ -34,6 +34,7 @@ from pathlib import Path
 import sys
 import sqlite3
 import ZBinErrorDev
+import serial
 
 #======GLOBAL VARIABLES==========
 GPIO_TRIGGER = 23 #ultrasonic
@@ -43,7 +44,7 @@ HX711IN = 5		  #weight sensor in
 HX711OUT = 6	  #weight sensor out
 
 UPLOAD_RATE = 3   #number of times collecting data before uploading to server
-ERRPATH = "errData.json"
+ERRPATH = "/home/pi/ZBinData/errData.json"
 
 if isPiDevice:
     JSONPATH = "/home/pi/ZBinData/binData.json"
@@ -96,6 +97,7 @@ class ZotBins():
         self.sendData=sendData
         self.sleepRate=frequencySec
         self.uploadRate = frequencySec * UPLOAD_RATE
+        self.ser = serial.Serial('/dev/ttyACM0',9600)
 
         #time
         self.post_time=time.time()
@@ -116,19 +118,13 @@ class ZotBins():
         weightSim<bool>:        Specifies whether to simulate weight data or use the physical weight sensor for data.
                                 If True, it returns the default value: 0.0 (cm)
         """
-        print("Starting run() function")
         #initialize ZState of bin
         with open(JSONPATH) as maindata:
-            print("Opening JSONPATH:",JSONPATH)
             sensorIDs = eval(maindata.read())["bin"]
-            print(sensorIDs)
-            print(sensorIDs[1].keys())
             self.state = ZBinErrorDev.ZState(sensorIDs[1].keys())
-        print("Entering Main Loop")
         failure = "NULL" #contains error messages, default no errors
         #=======MAIN LOOP==========
         while True:
-            print("Main Loop")
             try:
                 #=========Measure the Weight===============================
                 weight = self.measure_weight(weightCollect,weightSim)
@@ -168,23 +164,14 @@ class ZotBins():
             if simulate:
                 return 0.0
             else:
-                #array to collect the weight measurements
-                derek = []
-
-                #collect a list of weight measurements
-                for i in range(11):
-                    derek.append(self.hx.get_weight(5))
-                    self.hx.power_down()
-                    self.hx.power_up()
-                    time.sleep(0.25)
-
-                weight_result = sorted(derek)[5]
-                #checking for invalid weight reading (negative weight)
-                if weight_result < -10:
-                    self.state.increment("weight")
+                try:
+                    with self.time_limit(5):
+                        return float(str(self.ser.readline(),'utf-8').rstrip())
+                except Timeout:
                     return "NULL"
-
-                return weight_result
+                except Exception as e:
+                    print(repr(e))
+                    return "NULL"
         return "NULL"
 
     def measure_dist(self,collect=True,simulate=False):
@@ -350,6 +337,11 @@ class ZotBins():
         self.log_file = "logs/zbinlog_{}.csv".format(start_time)
         logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='"%(asctime)s","%(message)s"')
 
+class Timeout(Exception):
+    """
+    This is for the timed signal excpetion
+    """
+    pass
 
 if __name__ == "__main__":
     zot = ZotBins(sendData=True) #initialize the ZotBins object
