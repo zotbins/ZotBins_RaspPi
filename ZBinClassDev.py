@@ -42,8 +42,7 @@ GPIO_ECHO = 24    #ultrasonic
 HX711IN = 5       #weight sensor in
 HX711OUT = 6      #weight sensor out
 UPLOAD_RATE = 3   #number of times collecting data before uploading to server
-ERRPATH = "errData.json"
-SER = serial.Serial('/dev/ttyACM0',9600)
+ERRPATH = "/home/pi/ZBinData/errData.json"
 
 if isPiDevice:
     JSONPATH = "/home/pi/ZBinData/binData.json"
@@ -63,8 +62,6 @@ class ZotBins():
         """
         #extract the json info
         self.bininfo = self.parseJSON()
-
-        #===
         self.collectWeight, self.collectDistance = self.bininfo["collectWeight"], self.bininfo["collectDistance"]
 
         #====General GPIO Setup====================
@@ -99,6 +96,10 @@ class ZotBins():
         self.sleepRate=frequencySec
         self.uploadRate = frequencySec * UPLOAD_RATE
 
+        #TODO: Add more info about Weight Scale set-up on the Documentation
+        # I noticed that the serial port may alternate between /dev/ttyACM1 and /dev/ttyACM0. I also noticed that compile and upload the weight sensor code from the Arduino matters because it tell the code which Serial Port to output to. - okyang
+        self.ser = serial.Serial('/dev/ttyACM1',9600)
+
         #time
         self.post_time=time.time()
 
@@ -119,12 +120,9 @@ class ZotBins():
                                 If True, it returns the default value: 0.0 (cm)
         """
         #initialize ZState of bin
-        #print(JSONPATH+"\t"+DBPATH)
         with open(JSONPATH) as maindata:
             sensorIDs = eval(maindata.read())["bin"]
-            #print("sensorID's: ",sensorIDs[1].keys())
             self.state = ZBinErrorDev.ZState(sensorIDs[1].keys())
-        #print("new State")
         failure = "NULL" #contains error messages, default no errors
         #=======MAIN LOOP==========
         while True:
@@ -169,11 +167,13 @@ class ZotBins():
             else:
                 try:
                     with self.time_limit(5):
-                        read_serial = str(ser.readline(),'utf-8')
-                except serial.serialutil.SerialException:
-                    return "NULL" #we know it failed
+                        return float(str(self.ser.readline(),'utf-8').rstrip())
                 except Timeout:
-                    return "NULL" #we know it failed
+                    return "NULL"
+                except Exception as e:
+                    print(repr(e))
+                    return "NULL"
+        return "NULL"
 
     def measure_dist(self,collect=True,simulate=False):
         """
@@ -248,22 +248,11 @@ class ZotBins():
         """
         conn = sqlite3.connect(DBPATH)
 
-        conn.execute('''CREATE TABLE IF NOT EXISTS "BINS" (
-            "TIMESTAMP"	TEXT NOT NULL,
-            "WEIGHT"	REAL,
-            "DISTANCE"	REAL
-        );
-        ''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS BINS ("TIMESTAMP" TEXT NOT NULL, "WEIGHT" REAL, "DISTANCE" REAL,"MESSAGES"  TEXT);''')
+        conn.commit()
 
         #creates a new error table to hold a list of error messages, the main table will contain the name of the error table
-        err_table = "NULL"
-
-        if failure != "NULL":
-            conn.execute('''CREATE TABLE IF NOT EXISTS "ERRORS" (
-                        "TIMESTAMP" INT NOT NULL,
-                        "MESSAGES"  TEXT
-                        );''')
-            conn.execute('INSERT INTO ERRORS (TIMESTAMP,MESSAGES) \nVALUES ("{}","{}")'.format(timestamp,failure))
+        err_table = failure
 
         conn.execute("INSERT INTO BINS(TIMESTAMP,WEIGHT,DISTANCE,MESSAGES)\nVALUES('{}',{},{},'{}')".format(timestamp,weight,distance,err_table))
         conn.commit()
@@ -299,44 +288,7 @@ class ZotBins():
                 conn.execute("DELETE from BINS")
                 conn.commit()
                 self.post_time = time.time()
-            except Exception as e:
-                self.catch(e,"Tippers probably disconnected.")
-                self.state.increment("tippers")
-                return
-        else:
-            pass
-
-    '''***temporary remove after TIPPERS update'''
-    def update_grace(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
-    ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, BININFO):
-        """
-        This function updates the tippers database with local data
-        """
-        if ( (time.time() - self.post_time > self.uploadRate) and self.sendData ):
-            d = list()
-            conn = sqlite3.connect(DBPATH)
-            cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
-            for row in cursor:
-                timestamp,weight,distance = row
-                #weight sensor data
-                if weight != "NULL":
-                    d.append( {"timestamp": timestamp, "payload": {"weight": weight},
-                               "sensor_id" : WEIGHT_SENSOR_ID,"type": WEIGHT_TYPE})
-                #ultrasonic sensor data
-                if distance != "NULL":
-                    d.append({"timestamp": timestamp,"payload": {"distance": distance},
-                    "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
-
-            #for the request, we should try wrapping it in a try catch block
-            #what are we trying to capture in the for loop? It looks like we're just appending
-            #   data to be sent
-            #How should we handle the null case? Server acceptable?
-            try:
-                r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
-                #after updating tippers delete from local database
-                conn.execute("DELETE from BINS")
-                conn.commit()
-                self.post_time = time.time()
+                self.state.reset()
             except Exception as e:
                 self.catch(e,"Tippers probably disconnected.")
                 self.state.increment("tippers")
@@ -385,6 +337,12 @@ class ZotBins():
         #generate a log file with name with start of run
         self.log_file = "logs/zbinlog_{}.csv".format(start_time)
         logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='"%(asctime)s","%(message)s"')
+
+class Timeout(Exception):
+    """
+    This is for the timed signal excpetion
+    """
+    pass
 
 if __name__ == "__main__":
     zot = ZotBins(sendData=True) #initialize the ZotBins object

@@ -25,8 +25,8 @@ from socket import *
 
 #=====file imports=====
 from pathlib import Path
-JSONPATH = "../binData2.json"#"/home/pi/ZBinData/binData.json"
-ERRPATH = "../errData.json"#"/home/pi/ZBinData/errData.json"
+JSONPATH = "/home/pi/ZBinData/binData.json"
+ERRPATH = "/home/pi/ZBinData/errData.json"
 
 MAXTIMEOUT = 5    #default value for sensor timeout
 
@@ -37,7 +37,6 @@ class ZState():
     ultra:      ultrasonic sensors
     weight:     load sensor
     tippers:    connection
-
     sensorOn<{bool}>:   tracks each sensor's functionality
         U<bool>:    local value that tracks whether the ultrasonic sensor is working
         W<bool>:    local value that tracks whether the weight sensor is working
@@ -71,6 +70,9 @@ class ZState():
         is False or the file is not found then a list of default values are chosen
         **(currently configured for weight and ultrasonic sensor only!!!)
         """
+        self.sensorOn = { k:True for k in self.sensorID}
+        self.sensorCount = {k:0 for k in self.sensorID}
+
         if enabled:
             with open(JSONPATH) as bindata:
                 stateinfo = eval( bindata.read() )["bin"][1]
