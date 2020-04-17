@@ -97,7 +97,10 @@ class ZotBins():
         self.sendData=sendData
         self.sleepRate=frequencySec
         self.uploadRate = frequencySec * UPLOAD_RATE
-        self.ser = serial.Serial('/dev/ttyACM0',9600)
+
+        #TODO: Add more info about Weight Scale set-up on the Documentation
+        # I noticed that the serial port may alternate between /dev/ttyACM1 and /dev/ttyACM0. I also noticed that compile and upload the weight sensor code from the Arduino matters because it tell the code which Serial Port to output to. - okyang
+        self.ser = serial.Serial('/dev/ttyACM1',9600)
 
         #time
         self.post_time=time.time()
