@@ -39,10 +39,8 @@ import serial
 #======GLOBAL VARIABLES==========
 GPIO_TRIGGER = 23 #ultrasonic
 GPIO_ECHO = 24    #ultrasonic
-
-HX711IN = 5		  #weight sensor in
-HX711OUT = 6	  #weight sensor out
-
+HX711IN = 5       #weight sensor in
+HX711OUT = 6      #weight sensor out
 UPLOAD_RATE = 3   #number of times collecting data before uploading to server
 ERRPATH = "/home/pi/ZBinData/errData.json"
 
@@ -88,8 +86,8 @@ class ZotBins():
         self.ultrasonicSensorID = self.binID + 'D'
         self.ultrasonicType = 3
         self.headers = {
-        	"Content-Type": "application/json",
-        	"Accept": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
 
         #========class variables for data collection algorithm=========
