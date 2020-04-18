@@ -98,8 +98,11 @@ class ZotBins():
 
         #TODO: Add more info about Weight Scale set-up on the Documentation
         # I noticed that the serial port may alternate between /dev/ttyACM1 and /dev/ttyACM0. I also noticed that compile and upload the weight sensor code from the Arduino matters because it tell the code which Serial Port to output to. - okyang
-        self.ser = serial.Serial('/dev/ttyACM1',9600)
-
+        try:
+            self.ser = serial.Serial('/dev/ttyACM0',9600)
+        except Exception as e:
+            print(repr(e))
+            self.ser = False
         #time
         self.post_time=time.time()
 
@@ -164,6 +167,8 @@ class ZotBins():
         if collect:
             if simulate:
                 return 0.0
+            elif not self.ser:
+                return "NULL"
             else:
                 try:
                     with self.time_limit(5):
