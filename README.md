@@ -24,5 +24,49 @@ Make sure all electronic components ( load cell + hx711, ultrasonic sensor + vol
 ### Public Users
 If you are a public user, please change the last line of code in `ZBinMain.py` from `main()` to `main(SEND_DATA=False)` then run `ZBinMain.py` 
 
+### File Setup
+You also need to have the following files under the ZBinData:
+1) binData.json
+You can contact the [Zotbins team](https://zotbins.github.io) for an example setup file or follow the data format
+Format:
+```json
+{`"bin"`: [{"binID": binID, "tippersurl": api call}, {error defaults}]}
+```
+- "bin" refers to the first set of rules needed to find the binID and api call
+- "binID" refers to the raspberry pi ID. This is assigned through you or your organization
+- "tippersurl" is the api call used to upload to the local server
+
 ### ZotBins Team Users
 If you have all the configuration files on the raspberry pi (not on this repository for security resons) and wish to send data to the [TIPPERS](http://tippersweb.ics.uci.edu/) database, please run the program as is.
+
+
+## General Debugging
+Everytime `ZBinMain.py`is run, a log report is created, detailing bin startup and errors. It can be found in the `/logs` of the `ZotBins_RaspPi` folder
+
+### Error Messages
+Optionally you can add another file to configure error reports.
+`"errorData.json"` can be used to generate more detailed reports of your errors.
+```json
+{"data": ["binID": <binID>, "tippersurl": <api call>, <flags>,],
+ "messages": [<error message id>: <message>,]}
+```
+- `"data"` refers to data needed to call the api
+- `"messages"` refers to the error codes used to debug.
+
+Although you have to predict probable failures when writing more detailed errors, a default check using `"ZBinError.py"` will log whenever a sensor has failed.
+
+
+## Running Remotely
+You can also access the Raspberry Pi remotely thru VNC viewer.
+
+### Native Devices
+You can download [VNC viewer](https://www.realvnc.com/en/connect/download/viewer/)
+Set up your VNC account (email and password) to set up your VNC network
+
+### Raspberry Pi
+Open the terminal (`ctrl+alt+t`)
+Install VNC by typing `sudo apt install realvnc-vnc-server realvnc-vnc-viewer`
+On the desktop menu, navigate to `Menu>Preferences>Raspberry Pi Configuration>Interfaces`
+Ensure VNC is enabled
+Find the network address by typing `ifconfig`in the terminal under `ipv4`
+Enter the address into VNC viewer
