@@ -43,8 +43,8 @@ Everytime `ZBinMain.py`is run, a log report is created, detailing bin startup an
 Optionally you can add another file to configure error reports.
 `"errorData.json"` can be used to generate more detailed reports of your errors.
 ```json
-{"data": ["binID": "<binID>", "tippersurl": "<api call>", "<flags>,"],
- "messages": ["<error message id>": "<message>",]}
+{"data": [{"binID": "<binID>", "tippersurl": "<api call>", "<flags>,"}],
+ "messages": [{"<error message id>": "<message>",}]}
 ```
 - `"data"` refers to data needed to call the api
 - `"messages"` refers to the error codes used to debug.
