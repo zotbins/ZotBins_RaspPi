@@ -30,15 +30,11 @@ You also need to have the following files under the ZBinData:
 You can contact the [Zotbins team](https://zotbins.github.io) for an example setup file or follow the data format
 Format:
 ```json
-{`"bin"`: [{"binID": binID, "tippersurl": api call}, {error defaults}]}
+{"bin": [{"binID": "<binID>", "tippersurl": "<apicall>"}, "<{error defaults}>"]}
 ```
 - "bin" refers to the first set of rules needed to find the binID and api call
 - "binID" refers to the raspberry pi ID. This is assigned through you or your organization
 - "tippersurl" is the api call used to upload to the local server
-
-### ZotBins Team Users
-If you have all the configuration files on the raspberry pi (not on this repository for security resons) and wish to send data to the [TIPPERS](http://tippersweb.ics.uci.edu/) database, please run the program as is.
-
 
 ## General Debugging
 Everytime `ZBinMain.py`is run, a log report is created, detailing bin startup and errors. It can be found in the `/logs` of the `ZotBins_RaspPi` folder
@@ -47,8 +43,8 @@ Everytime `ZBinMain.py`is run, a log report is created, detailing bin startup an
 Optionally you can add another file to configure error reports.
 `"errorData.json"` can be used to generate more detailed reports of your errors.
 ```json
-{"data": ["binID": <binID>, "tippersurl": <api call>, <flags>,],
- "messages": [<error message id>: <message>,]}
+{"data": ["binID": "<binID>", "tippersurl": "<api call>", "<flags>,"],
+ "messages": ["<error message id>": "<message>",]}
 ```
 - `"data"` refers to data needed to call the api
 - `"messages"` refers to the error codes used to debug.
