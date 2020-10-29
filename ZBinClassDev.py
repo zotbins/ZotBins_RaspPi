@@ -48,7 +48,7 @@ if isPiDevice:
     JSONPATH = "/home/pi/ZBinData/binData.json"
     DBPATH = "/home/pi/ZBinData/zotbin.db"
 else:  #directories for testing
-    JSONPATH =  "../binData2.json" #"../binData.json"
+    JSONPATH =  "../binData.json" #"../binData.json"
     DBPATH = "../database/zotbin.db"
 
 class ZotBins():
@@ -353,7 +353,7 @@ if __name__ == "__main__":
     zot = ZotBins(sendData=True) #initialize the ZotBins object
     #print("Initializing")
     try:
-        zot.run(ultCollect=zot.collectDistance,weightCollect=zot.collectWeight,distSim=False,weightSim=False) #run the data collection algorithm
+        zot.run(ultCollect=zot.collectDistance,weightCollect=zot.collectWeight,distSim=True,weightSim=True) #run the data collection algorithm
     finally:
         GPIO.cleanup()
         sys.exit()

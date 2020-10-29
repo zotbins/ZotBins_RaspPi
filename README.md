@@ -19,10 +19,10 @@ Make sure all electronic components ( load cell + hx711, ultrasonic sensor + vol
 1) Open Terminal (you can use the short-cut: `ctrl+alt+t`)
 2) `git clone https://github.com/okyang/ZotBins_RaspPi.git`
 3) `cd ZotBins_RaspPi`
-4) `python3 ZBinMain.py` (please read user notes below)
+4) `python3 ZBinClassDev.py` (please read user notes below)
 
 ### Public Users
-If you are a public user, please change the last line of code in `ZBinMain.py` from `main()` to `main(SEND_DATA=False)` then run `ZBinMain.py` 
+If you are a public user, please change the last line of code in `ZBinClassDev.py` from `ZotBins(sendData=True)` to `ZotBins(sendData=False)` then run `ZBinClassDev.py` 
 
 ### File Setup
 You also need to have the following files under the ZBinData:
@@ -40,7 +40,7 @@ Format:
 If you have all the configuration files on the raspberry pi (not on this repository for security reasons) and wish to send data to the [TIPPERS](http://tippersweb.ics.uci.edu/) database, please run the program as is.
 
 ## General Debugging
-Everytime `ZBinMain.py`is run, a log report is created, detailing bin startup and errors. It can be found in the `/logs` of the `ZotBins_RaspPi` folder
+Everytime `ZBinClassDev.py`is run, a log report is created, detailing bin startup and errors. It can be found in the `/logs` of the `ZotBins_RaspPi` folder
 
 ### Error Messages
 Optionally, you can add another file to configure error reports.
