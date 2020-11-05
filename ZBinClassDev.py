@@ -20,7 +20,8 @@ try:
     isPiDevice = True
 except Exception as e:
     isPiDevice = False
-    #add dummy RPi modules to run tests
+    import RPi_DUMMY.GPIO as GPIO
+    from HX711_DUMMY.hx711 import HX711
 
 #=====API imports===============
 import json
@@ -41,14 +42,14 @@ GPIO_TRIGGER = 23 #ultrasonic
 GPIO_ECHO = 24    #ultrasonic
 HX711IN = 5       #weight sensor in
 HX711OUT = 6      #weight sensor out
-UPLOAD_RATE = 3   #number of times collecting data before uploading to server
+UPLOAD_RATE = 3  #number of times collecting data before uploading to server
 ERRPATH = "/home/pi/ZBinData/errData.json"
 
 if isPiDevice:
     JSONPATH = "/home/pi/ZBinData/binData.json"
     DBPATH = "/home/pi/ZBinData/zotbin.db"
 else:  #directories for testing
-    JSONPATH =  "../binData.json" #"../binData.json"
+    JSONPATH =  "./simulation/binData.json" #"../binData.json"
     DBPATH = "../database/zotbin.db"
 
 class ZotBins():
@@ -60,6 +61,7 @@ class ZotBins():
         frequencySec<int>: determines the sampling rate of which the
             algorithm collects data
         """
+
         #extract the json info
         self.bininfo = self.parseJSON()
         self.collectWeight, self.collectDistance = self.bininfo["collectWeight"], self.bininfo["collectDistance"]
@@ -72,11 +74,12 @@ class ZotBins():
         GPIO.setup(GPIO_ECHO, GPIO.IN) #for ultrasonic sensor
 
         #=====setup hx711 GPIO pins=================
-        self.hx = HX711(HX711IN, HX711OUT)
-        self.hx.set_reading_format("LSB", "MSB")
-        self.hx.set_reference_unit(float( self.bininfo["weightCal"] ))
-        self.hx.reset()
-        self.hx.tare()
+        if isPiDevice:
+            self.hx = HX711(HX711IN, HX711OUT)
+            self.hx.set_reading_format("LSB", "MSB")
+            self.hx.set_reference_unit(float( self.bininfo["weightCal"] ))
+            self.hx.reset()
+            self.hx.tare()
 
         #========Query Information======================================
         #assign variables
@@ -98,11 +101,12 @@ class ZotBins():
 
         #TODO: Add more info about Weight Scale set-up on the Documentation
         # I noticed that the serial port may alternate between /dev/ttyACM1 and /dev/ttyACM0. I also noticed that compile and upload the weight sensor code from the Arduino matters because it tell the code which Serial Port to output to. - okyang
-        try:
-            self.ser = serial.Serial('/dev/ttyACM0',9600)
-        except Exception as e:
-            print(repr(e))
-            self.ser = False
+        if isPiDevice:
+            try:
+                self.ser = serial.Serial('/dev/ttyACM0',9600)
+            except Exception as e:
+                print(repr(e))
+                self.ser = False
         #time
         self.post_time=time.time()
 
@@ -166,7 +170,7 @@ class ZotBins():
         """
         if collect:
             if simulate:
-                return 0.0
+                return 60.0
             elif not self.ser:
                 return "NULL"
             else:
@@ -195,7 +199,7 @@ class ZotBins():
         """
         if collect:
             if simulate:
-                return 60.0
+                return 30.0
             else:
                 #set the Trigger to HIGH
                 GPIO.output(GPIO_TRIGGER, True)
@@ -268,7 +272,9 @@ class ZotBins():
         """
         This function updates the tippers database with local data
         """
+        
         if ( (time.time() - self.post_time > self.uploadRate) and self.sendData ):
+            print("Updating tippers")
             d = list()
             conn = sqlite3.connect(DBPATH)
             cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
@@ -288,13 +294,17 @@ class ZotBins():
             #   data to be sent
             #How should we handle the null case? Server acceptable?
             try:
+                print("Data to be pushed: \n", d)
                 r = requests.post(BININFO["tippersurl"], data=json.dumps(d), headers=HEADERS)
                 #after updating tippers delete from local database
                 conn.execute("DELETE from BINS")
                 conn.commit()
                 self.post_time = time.time()
-                self.state.reset()
+                self.state.reset(str(WEIGHT_SENSOR_ID))
+                self.state.reset(str(ULTRASONIC_SENSOR_ID))
+                print("Tippers status code: ", r.status_code)
             except Exception as e:
+                print("Tippers error: ", e)
                 self.catch(e,"Tippers probably disconnected.")
                 self.state.increment("tippers")
                 return
@@ -350,8 +360,7 @@ class Timeout(Exception):
     pass
 
 if __name__ == "__main__":
-    zot = ZotBins(sendData=True) #initialize the ZotBins object
-    #print("Initializing")
+    zot = ZotBins(sendData=True, frequencySec=300) #initialize the ZotBins object
     try:
         zot.run(ultCollect=zot.collectDistance,weightCollect=zot.collectWeight,distSim=True,weightSim=True) #run the data collection algorithm
     finally:
