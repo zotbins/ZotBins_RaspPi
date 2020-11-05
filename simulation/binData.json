@@ -1,0 +1,26 @@
+{
+   "bin":[
+      {
+         "binID":"ZBin4",
+         "weightCal":"76.6",
+         "tippersurl":"https://zotbins.pythonanywhere.com/observation/add",
+         "collectWeight":True,
+         "collectDistance":True
+      },
+      {
+         "ultra":3,
+         "weight":5,
+         "tippers":3
+      }
+   ],
+   "user":[
+      {
+         "email":"zotbinsuci@gmail.com",
+         "pass":"Zotbins7",
+         "target":[
+            "daviddp1@uci.edu",
+            "okyang@uci.edu"
+         ]
+      }
+   ]
+}
