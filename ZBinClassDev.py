@@ -351,6 +351,7 @@ class ZotBins():
         if not p.exists() or not p.is_dir():
             p.mkdir()
         #generate a log file with name with start of run
+        #NOTE: changed format of csv file to replace : with - since that doesn't work with windows
         self.log_file = "logs/zbinlog_{}.csv".format(start_time).replace(':','-')
         logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='"%(asctime)s","%(message)s"')
 
