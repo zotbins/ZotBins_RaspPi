@@ -36,6 +36,7 @@ import sys
 import sqlite3
 import ZBinErrorDev
 import serial
+import queries
 
 #======GLOBAL VARIABLES==========
 GPIO_TRIGGER = 23 #ultrasonic
@@ -256,14 +257,14 @@ class ZotBins():
         failure<str>: hold list of error messages, or is default null
         """
         conn = sqlite3.connect(DB_PATH)
-
-        conn.execute('''CREATE TABLE IF NOT EXISTS BINS ("TIMESTAMP" TEXT NOT NULL, "WEIGHT" REAL, "DISTANCE" REAL,"MESSAGES"  TEXT);''')
+        
+        conn.execute(queries.create_local_table)
         conn.commit()
 
         #creates a new error table to hold a list of error messages, the main table will contain the name of the error table
         err_table = failure
 
-        conn.execute("INSERT INTO BINS(TIMESTAMP,WEIGHT,DISTANCE,MESSAGES)\nVALUES('{}',{},{},'{}')".format(timestamp,weight,distance,err_table))
+        conn.execute(queries.insert_data.format(timestamp,weight,distance,err_table))
         conn.commit()
         conn.close()
 
@@ -277,7 +278,7 @@ class ZotBins():
             print("Updating tippers")
             d = list()
             conn = sqlite3.connect(DB_PATH)
-            cursor = conn.execute("SELECT TIMESTAMP, WEIGHT, DISTANCE from BINS")
+            cursor = conn.execute(queries.select_data)
             for row in cursor:
                 timestamp,weight,distance = row
                 #weight sensor data
@@ -297,7 +298,7 @@ class ZotBins():
                 print("Data to be pushed: \n", d)
                 r = requests.post(bin_info["tippersurl"], data=json.dumps(d), headers=HEADERS)
                 #after updating tippers delete from local database
-                conn.execute("DELETE from BINS")
+                conn.execute(queries.delete_data)
                 conn.commit()
                 self.post_time = time.time()
                 self.state.reset(str(WEIGHT_SENSOR_ID))
@@ -350,7 +351,8 @@ class ZotBins():
         if not p.exists() or not p.is_dir():
             p.mkdir()
         #generate a log file with name with start of run
-        self.log_file = "logs/zbinlog_{}.csv".format(start_time)
+        #NOTE: changed format of csv file to replace : with - since that doesn't work with windows
+        self.log_file = "logs/zbinlog_{}.csv".format(start_time).replace(':','-')
         logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='"%(asctime)s","%(message)s"')
 
 class Timeout(Exception):
