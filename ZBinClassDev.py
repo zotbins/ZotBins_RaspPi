@@ -158,6 +158,10 @@ class ZotBins():
 
                 #========Send a notification============
                 if failure != "NULL" and self.send_data and self.state.checkConnection():
+                    # Write error data to local db
+                    self.add_error_data_to_local(timestamp, self.weight_sensor_ID, failure)
+
+                    #send notification to log file
                     self.state.notify(Path(self.log_file))
             except Exception as e:
                 self.catch(e)
@@ -268,6 +272,25 @@ class ZotBins():
         conn.commit()
         conn.close()
 
+    def add_error_data_to_local(self, timestamp, weight_sensor_ID, failure):
+        """
+        This function adds timestamp and the associated failure error
+        to the SQLite database located in {ZotBinsLocalWorkspace}/database/zotbin.db in a table called ERROR
+        timestamp<str>: in the format '%Y-%m-%d %H:%M:%S'
+        failure<str>: string that contains the error that caused the failure
+        """
+        conn = sqlite3.connect(DB_PATH)
+        
+        conn.execute(queries.create_local_error_table)
+        conn.commit()
+       
+        #inserts error data into local database with timestamp and error as a string
+        conn.execute(queries.insert_error_data.format(timestamp,weight_sensor_ID, failure.replace('\'', '"')))
+        
+        conn.commit()
+        conn.close()
+
+
     def update_tippers(self,WEIGHT_SENSOR_ID, WEIGHT_TYPE,
     ULTRASONIC_SENSOR_ID, ULTRASONIC_TYPE, HEADERS, bin_info):
         """
@@ -276,7 +299,10 @@ class ZotBins():
         
         if ( (time.time() - self.post_time > self.upload_rate) and self.send_data ):
             print("Updating tippers")
+
             d = list()
+            error_list = list()
+
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.execute(queries.select_data)
             for row in cursor:
@@ -290,6 +316,12 @@ class ZotBins():
                     d.append({"timestamp": timestamp,"payload": {"distance": distance},
                     "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
 
+            error_cursor = conn.execute(queries.select_error_data)
+
+            for row in error_cursor:
+                timestamp, error_weight_sensor_ID, error = row
+                error_list.append( {"timestamp": timestamp, "sensor_id": error_weight_sensor_ID, "error": error})
+
             #for the request, we should try wrapping it in a try catch block
             #what are we trying to capture in the for loop? It looks like we're just appending
             #   data to be sent
@@ -300,12 +332,30 @@ class ZotBins():
                 #after updating tippers delete from local database
                 conn.execute(queries.delete_data)
                 conn.commit()
+                
+                print("Tippers status code: ", r.status_code)
+
+                # push errors if there are any to tippers
+                if len(error_list) > 0:
+                    print("Errors to be pushed: \n", error_list)
+                    r = requests.post(bin_info["tippersErrorUrl"], data=json.dumps(error_list), headers=HEADERS)
+                    
+                    #after updating tippers delete error data from local database
+                    conn.execute(queries.delete_error_data)
+                    conn.commit()
+
+                    print("Tippers status code: ", r.status_code)
+                
+                #reset data
                 self.post_time = time.time()
                 self.state.reset(str(WEIGHT_SENSOR_ID))
                 self.state.reset(str(ULTRASONIC_SENSOR_ID))
-                print("Tippers status code: ", r.status_code)
             except Exception as e:
                 print("Tippers error: ", e)
+
+                #write to local error database
+                self.add_error_data_to_local(timestamp, WEIGHT_SENSOR_ID, str(e))
+
                 self.catch(e,"Tippers probably disconnected.")
                 self.state.increment("tippers")
                 return

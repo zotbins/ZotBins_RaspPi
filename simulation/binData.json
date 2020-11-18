@@ -4,6 +4,7 @@
          "binID":"ZBin4",
          "weightCal":"76.6",
          "tippersurl":"https://zotbins.pythonanywhere.com/observation/add",
+         "tippersErrorUrl":"https://zotbins.pythonanywhere.com/error/add",
          "collectWeight":True,
          "collectDistance":True
       },
