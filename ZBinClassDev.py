@@ -316,35 +316,21 @@ class ZotBins():
                     d.append({"timestamp": timestamp,"payload": {"distance": distance},
                     "sensor_id" : ULTRASONIC_SENSOR_ID,"type": ULTRASONIC_TYPE})
 
+            # check if there is error data
             error_cursor = conn.execute(queries.select_error_data)
 
             for row in error_cursor:
                 timestamp, error_weight_sensor_ID, error = row
                 error_list.append( {"timestamp": timestamp, "sensor_id": error_weight_sensor_ID, "error": error})
 
-            #for the request, we should try wrapping it in a try catch block
-            #what are we trying to capture in the for loop? It looks like we're just appending
-            #   data to be sent
             #How should we handle the null case? Server acceptable?
             try:
-                print("Data to be pushed: \n", d)
-                r = requests.post(bin_info["tippersurl"], data=json.dumps(d), headers=HEADERS)
-                #after updating tippers delete from local database
-                conn.execute(queries.delete_data)
-                conn.commit()
-                
-                print("Tippers status code: ", r.status_code)
-
-                # push errors if there are any to tippers
-                if len(error_list) > 0:
-                    print("Errors to be pushed: \n", error_list)
-                    r = requests.post(bin_info["tippersErrorUrl"], data=json.dumps(error_list), headers=HEADERS)
-                    
-                    #after updating tippers delete error data from local database
-                    conn.execute(queries.delete_error_data)
-                    conn.commit()
-
-                    print("Tippers status code: ", r.status_code)
+                # push weight and distance data to tippers
+                self.push_data_to_tippers(conn,d,bin_info["tippersurl"], queries.delete_data, HEADERS)
+               
+                #push error data
+                print("ERRORS")
+                self.push_data_to_tippers(conn,error_list,bin_info["tippersErrorUrl"], queries.delete_error_data, HEADERS)
                 
                 #reset data
                 self.post_time = time.time()
@@ -361,6 +347,20 @@ class ZotBins():
                 return
         else:
             pass
+
+    def push_data_to_tippers(self, conn, data_to_push, url, delete_query, headers):
+        """
+        This function handles pushing data to tippers using conn
+        """
+        if len(data_to_push) > 0:
+            print("Data to be pushed: \n", data_to_push)
+            r = requests.post(url, data=json.dumps(data_to_push), headers=headers)
+            #after updating tippers delete from local database
+            conn.execute(delete_query)
+            conn.commit()
+            
+            print("Tippers status code: ", r.status_code)
+
 
     @contextmanager
     def time_limit(self,seconds):
@@ -412,7 +412,7 @@ class Timeout(Exception):
     pass
 
 if __name__ == "__main__":
-    zot = ZotBins(send_data=True, frequency_sec=300) #initialize the ZotBins object
+    zot = ZotBins(send_data=True, frequency_sec=10) #initialize the ZotBins object
     try:
         zot.run(ult_collect=zot.collect_distance,weight_collect=zot.collect_weight,dist_sim=True,weight_sim=True) #run the data collection algorithm
     finally:
