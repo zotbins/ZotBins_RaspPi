@@ -32,7 +32,7 @@ class HCSR04:
         
         Returns NULL if sensor timed out after 5 seconds
         """
-        time_elapsed = self.send_pulse()
+        time_elapsed = self._send_pulse()
 
         if time_elapsed == "NULL":
             return "NULL"
