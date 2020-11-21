@@ -412,7 +412,7 @@ class Timeout(Exception):
     pass
 
 if __name__ == "__main__":
-    zot = ZotBins(send_data=True, frequency_sec=10) #initialize the ZotBins object
+    zot = ZotBins(send_data=True, frequency_sec=300) #initialize the ZotBins object
     try:
         zot.run(ult_collect=zot.collect_distance,weight_collect=zot.collect_weight,dist_sim=True,weight_sim=True) #run the data collection algorithm
     finally:
