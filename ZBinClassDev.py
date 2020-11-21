@@ -16,7 +16,7 @@ from contextlib import contextmanager
 IS_PI_DEVICE = None #check to see if testing on Pi device
 try:
     import RPi.GPIO as GPIO
-    from hx711 import HX711
+    # from hx711 import HX711
     from hcsr04 import HCSR04
     IS_PI_DEVICE = True
 except Exception as e:
@@ -73,12 +73,15 @@ class ZotBins():
             self.ultrasonic_sensor = HCSR04(GPIO_TRIGGER, GPIO_ECHO)
 
         #=====setup hx711 GPIO pins=================
+        #NOTE: HX711 weight sensor unused, weight info is read from serial
+        """ 
         if IS_PI_DEVICE:
             self.hx = HX711(HX711_IN, HX711_OUT)
             self.hx.set_reading_format("LSB", "MSB")
             self.hx.set_reference_unit(float( self.bin_info["weightCal"] ))
             self.hx.reset()
-            self.hx.tare()
+            self.hx.tare() 
+        """
 
         #========Query Information======================================
         #assign variables

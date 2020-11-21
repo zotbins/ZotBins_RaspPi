@@ -3,6 +3,7 @@ Ultrasonic HC-SR04 Sensor Driver
 Must be run on Raspberry Pi to work
 """
 
+from contextlib import contextmanager
 import RPi.GPIO as GPIO
 import time
 import signal
