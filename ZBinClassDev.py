@@ -67,7 +67,8 @@ class ZotBins():
         #extract the json info
         self.bin_info = self.parse_JSON()
         self.collect_weight, self.collect_distance = self.bin_info["collectWeight"], self.bin_info["collectDistance"]
-
+        
+        # TODO: Test driver on actual hardware in the future
         # Setup ultrasonic sensor
         if IS_PI_DEVICE:
             self.ultrasonic_sensor = HCSR04(GPIO_TRIGGER, GPIO_ECHO)
