@@ -16,7 +16,8 @@ from contextlib import contextmanager
 IS_PI_DEVICE = None #check to see if testing on Pi device
 try:
     import RPi.GPIO as GPIO
-    from hx711 import HX711
+    # from hx711 import HX711
+    from hcsr04 import HCSR04
     IS_PI_DEVICE = True
 except Exception as e:
     IS_PI_DEVICE = False
@@ -66,21 +67,22 @@ class ZotBins():
         #extract the json info
         self.bin_info = self.parse_JSON()
         self.collect_weight, self.collect_distance = self.bin_info["collectWeight"], self.bin_info["collectDistance"]
-
-        #====General GPIO Setup====================
-        GPIO.setmode(GPIO.BCM) #for weight sensor
-
-        #====set up Ultrasonic GPIO pins============
-        GPIO.setup(GPIO_TRIGGER, GPIO.OUT) #for ultrasonic sensor
-        GPIO.setup(GPIO_ECHO, GPIO.IN) #for ultrasonic sensor
+        
+        # TODO: Test driver on actual hardware in the future
+        # Setup ultrasonic sensor
+        if IS_PI_DEVICE:
+            self.ultrasonic_sensor = HCSR04(GPIO_TRIGGER, GPIO_ECHO)
 
         #=====setup hx711 GPIO pins=================
+        #NOTE: HX711 weight sensor unused, weight info is read from serial
+        """ 
         if IS_PI_DEVICE:
             self.hx = HX711(HX711_IN, HX711_OUT)
             self.hx.set_reading_format("LSB", "MSB")
             self.hx.set_reference_unit(float( self.bin_info["weightCal"] ))
             self.hx.reset()
-            self.hx.tare()
+            self.hx.tare() 
+        """
 
         #========Query Information======================================
         #assign variables
@@ -206,28 +208,7 @@ class ZotBins():
             if simulate:
                 return 30.0
             else:
-                #set the Trigger to HIGH
-                GPIO.output(GPIO_TRIGGER, True)
-
-                #set the Trigger after 0.01 ms to LOW
-                time.sleep(0.00001)
-                GPIO.output(GPIO_TRIGGER, False)
-
-                start_time = time.time()
-                stop_time = time.time()
-
-                try:
-                    with self.time_limit(5):
-                        while GPIO.input(GPIO_ECHO) == 0:
-                            start_time = time.time()
-                        while GPIO.input(GPIO_ECHO) == 1:
-                            stop_time = time.time()
-                except Timeout:
-                    return "NULL" #we know it failed
-
-                time_elapsed = stop_time - start_time
-                distance = (time_elapsed*34300)/2
-                return distance
+                return self.ultrasonic_sensor.measure_dist()
 
     def parse_JSON(self):
         """
