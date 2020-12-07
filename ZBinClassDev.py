@@ -16,13 +16,13 @@ from contextlib import contextmanager
 IS_PI_DEVICE = None #check to see if testing on Pi device
 try:
     import RPi.GPIO as GPIO
-    # from hx711 import HX711
     from hcsr04 import HCSR04
     IS_PI_DEVICE = True
 except Exception as e:
     IS_PI_DEVICE = False
     import RPi_DUMMY.GPIO as GPIO
     from HX711_DUMMY.hx711 import HX711
+    from HCSR04_DUMMY.hcsr04 import HCSR04
 
 #=====API imports===============
 import json
@@ -53,6 +53,9 @@ if IS_PI_DEVICE:
 else:  #directories for testing
     JSON_PATH =  "./simulation/binData.json" #"../binData.json"
     DB_PATH = "../database/zotbin.db"
+    # txt file of mock data, assumed that txt file is in correct format 
+    # Format: "distance_value weight_value"
+    TEST_PATH = "test1.txt"
 
 class ZotBins():
     def __init__(self,send_data=True,frequency_sec=300):
@@ -72,6 +75,9 @@ class ZotBins():
         # Setup ultrasonic sensor
         if IS_PI_DEVICE:
             self.ultrasonic_sensor = HCSR04(GPIO_TRIGGER, GPIO_ECHO)
+        else:
+            # Mock ultrasonic sensor that reads from 1st value in txt file
+            self.ultrasonic_sensor = HCSR04(TEST_PATH)
 
         #=====setup hx711 GPIO pins=================
         #NOTE: HX711 weight sensor unused, weight info is read from serial
@@ -205,10 +211,7 @@ class ZotBins():
         simulate<bool>
         """
         if collect:
-            if simulate:
-                return 30.0
-            else:
-                return self.ultrasonic_sensor.measure_dist()
+            return self.ultrasonic_sensor.measure_dist()
 
     def parse_JSON(self):
         """
