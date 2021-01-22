@@ -16,13 +16,14 @@ from contextlib import contextmanager
 IS_PI_DEVICE = None #check to see if testing on Pi device
 try:
     import RPi.GPIO as GPIO
-    # from hx711 import HX711
     from hcsr04 import HCSR04
+    import serial
     IS_PI_DEVICE = True
 except Exception as e:
     IS_PI_DEVICE = False
     import RPi_DUMMY.GPIO as GPIO
-    from HX711_DUMMY.hx711 import HX711
+    from SERIAL_DUMMY import serial
+    from HCSR04_DUMMY.hcsr04 import HCSR04
 
 #=====API imports===============
 import json
@@ -36,7 +37,7 @@ from pathlib import Path
 import sys
 import sqlite3
 import ZBinErrorDev
-import serial
+
 import queries
 
 #======GLOBAL VARIABLES==========
@@ -53,6 +54,9 @@ if IS_PI_DEVICE:
 else:  #directories for testing
     JSON_PATH =  "./simulation/binData.json" #"../binData.json"
     DB_PATH = "../database/zotbin.db"
+    # txt file of mock data, assumed that txt file is in correct format 
+    # Format: "weight_value distance_value"
+    TEST_PATH = "test1.txt"
 
 class ZotBins():
     def __init__(self,send_data=True,frequency_sec=300):
@@ -72,6 +76,9 @@ class ZotBins():
         # Setup ultrasonic sensor
         if IS_PI_DEVICE:
             self.ultrasonic_sensor = HCSR04(GPIO_TRIGGER, GPIO_ECHO)
+        else:
+            # Mock ultrasonic sensor that reads from value in txt file
+            self.ultrasonic_sensor = HCSR04(TEST_PATH)
 
         #=====setup hx711 GPIO pins=================
         #NOTE: HX711 weight sensor unused, weight info is read from serial
@@ -110,6 +117,9 @@ class ZotBins():
             except Exception as e:
                 print(repr(e))
                 self.ser = False
+        else:
+            # Mock serial port that reads mock weight data from txt file
+            self.ser = serial.Serial(TEST_PATH)
         #time
         self.post_time=time.time()
 
@@ -176,9 +186,7 @@ class ZotBins():
         simulate<bool>: If True, it will just return 0.0
         """
         if collect:
-            if simulate:
-                return 60.0
-            elif not self.ser:
+            if not self.ser:
                 return "NULL"
             else:
                 try:
@@ -205,10 +213,7 @@ class ZotBins():
         simulate<bool>
         """
         if collect:
-            if simulate:
-                return 30.0
-            else:
-                return self.ultrasonic_sensor.measure_dist()
+            return self.ultrasonic_sensor.measure_dist()
 
     def parse_JSON(self):
         """
@@ -349,6 +354,14 @@ class ZotBins():
         This is for the timed signal to limit the amount of time it takes for
         a function to run.
         """
+
+        # Do nothing if not Pi device because SIGALRM does not works on Windows OS
+        if not IS_PI_DEVICE:
+            try: 
+                yield
+            finally:
+                return
+
         def signal_handler(signum, frame):
             raise TimeoutException("Timed out!")
         signal.signal(signal.SIGALRM, self._handler)
